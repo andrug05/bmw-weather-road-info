@@ -4,9 +4,9 @@
  */
 const mgu = require('./kit/mgu');
 const G = require('./kit/gauges');
-const { fetchWeather } = require('./api/weather');
-const { fetchRoadInfo } = require('./api/roads');
-const { createLocationService } = require('./api/location');
+const { fetchWeather } = require('./weather');
+const { fetchRoadInfo } = require('./roads');
+const { createLocationService } = require('./location');
 const { formatTemperature } = require('./model');
 
 const W = 1600, H = 520;
