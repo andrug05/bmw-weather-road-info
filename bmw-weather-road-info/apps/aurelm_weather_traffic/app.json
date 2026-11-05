@@ -2,7 +2,7 @@
   "id": "aurelm_weather_traffic",
   "title": "Weather & Road Info",
   "description": "Weather forecast and mapped road restrictions for BMW iDrive 7. Open-Meteo and OpenStreetMap; internet via mgu-uplink.",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "vendor": "andrug05",
   "loggingId": "AWR1",
   "screens": [
@@ -33,13 +33,8 @@
       "key": "city",
       "label": "Manual city",
       "type": "choice",
-      "default": "chisinau",
+      "default": "berlin",
       "options": [
-        ["chisinau", "Chisinau"],
-        ["bucharest", "Bucharest"],
-        ["iasi", "Iasi"],
-        ["kyiv", "Kyiv"],
-        ["warsaw", "Warsaw"],
         ["berlin", "Berlin"],
         ["yoshkar_ola", "Yoshkar-Ola"],
         ["moscow", "Moscow"],
