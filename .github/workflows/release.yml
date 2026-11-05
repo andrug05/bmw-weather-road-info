@@ -55,4 +55,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "v${{ inputs.version }}" "release/aurelm_weather_traffic@${{ inputs.version }}.tgz" --repo "${{ github.repository }}" --title "Weather & Road Info v${{ inputs.version }}" --notes "BMW MGU ID7 OAP package. Requires mgu-uplink for internet access. OSM data is not live traffic."
+          TAG="v${{ inputs.version }}"
+          ASSET="release/aurelm_weather_traffic@${{ inputs.version }}.tgz"
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ASSET" --repo "${{ github.repository }}" --clobber
+          else
+            gh release create "$TAG" "$ASSET" --repo "${{ github.repository }}" --title "Weather & Road Info v${{ inputs.version }}" --notes "BMW MGU ID7 OAP package. Requires mgu-uplink for internet access. OSM data is not live traffic."
+          fi
