@@ -67,8 +67,24 @@ jobs:
         run: |
           TAG="v${VERSION}"
           ASSET="release/aurelm_weather_traffic@${VERSION}.tgz"
-          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$ASSET" --repo "${{ github.repository }}" --clobber
-          else
-            gh release create "$TAG" "$ASSET" --repo "${{ github.repository }}" --title "Weather & Road Info v${VERSION}" --notes "BMW MGU ID7 OAP package. Requires mgu-uplink for internet access. OSM data is not live traffic."
-          fi
+          set +e
+          for attempt in 1 2 3 4 5; do
+            echo "GitHub Release publish attempt ${attempt}/5"
+            if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+              gh release upload "$TAG" "$ASSET" --repo "${{ github.repository }}" --clobber
+              result=$?
+            else
+              gh release create "$TAG" "$ASSET" --repo "${{ github.repository }}" --title "Weather & Road Info v${VERSION}" --notes "BMW MGU ID7 OAP package. Requires mgu-uplink for internet access. OSM data is not live traffic."
+              result=$?
+            fi
+            if [ "$result" -eq 0 ]; then
+              echo "Release asset published successfully"
+              exit 0
+            fi
+            if [ "$attempt" -lt 5 ]; then
+              echo "Publish failed (exit $result); retrying in $((attempt * 10)) seconds"
+              sleep $((attempt * 10))
+            fi
+          done
+          echo "::error::Could not publish the release asset after 5 attempts"
+          exit 1
