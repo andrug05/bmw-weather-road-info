@@ -1,6 +1,6 @@
 {
   "name": "aurelm_weather_traffic",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "private": true,
   "description": "BMW MGU ID7 weather and road information app source",
   "scripts": {
