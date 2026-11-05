@@ -1,7 +1,83 @@
 {
   "id": "aurelm_weather_traffic",
-  "name": "Weather & Road Info",
-  "version": "0.1.0",
-  "description": "Weather forecast and OpenStreetMap road restrictions for BMW MGU ID7",
-  "entry": "main.js"
+  "title": "Weather & Road Info",
+  "description": "Weather forecast and mapped road restrictions for BMW iDrive 7. Open-Meteo and OpenStreetMap; internet via mgu-uplink.",
+  "version": "0.1.1",
+  "vendor": "andrug05",
+  "loggingId": "AWR1",
+  "screens": [
+    {
+      "name": "MAIN",
+      "kind": "canvas",
+      "title": "Weather & Road Info",
+      "buttons": [
+        [
+          "BTN_REFRESH",
+          "Refresh"
+        ],
+        [
+          "BTN_WEATHER",
+          "Weather"
+        ],
+        [
+          "BTN_ROADS",
+          "Roads"
+        ],
+        [
+          "BTN_LOCATION",
+          "GPS / Manual"
+        ]
+      ]
+    }
+  ],
+  "settings": [
+    {
+      "key": "location_mode",
+      "label": "Location source",
+      "type": "choice",
+      "default": "gps",
+      "options": [
+        [
+          "gps",
+          "Vehicle GPS"
+        ],
+        [
+          "manual",
+          "Manual city"
+        ]
+      ]
+    },
+    {
+      "key": "city",
+      "label": "Manual city",
+      "type": "choice",
+      "default": "chisinau",
+      "options": [
+        [
+          "chisinau",
+          "Chisinau"
+        ],
+        [
+          "bucharest",
+          "Bucharest"
+        ],
+        [
+          "iasi",
+          "Iasi"
+        ],
+        [
+          "kyiv",
+          "Kyiv"
+        ],
+        [
+          "warsaw",
+          "Warsaw"
+        ],
+        [
+          "berlin",
+          "Berlin"
+        ]
+      ]
+    }
+  ]
 }
