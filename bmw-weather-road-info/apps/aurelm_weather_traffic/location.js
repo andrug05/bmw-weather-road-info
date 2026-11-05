@@ -1,6 +1,6 @@
 'use strict';
 const {DEFAULT_LOCATION,validCoordinates}=require('./model');
-const CITIES={chisinau:{name:'Chisinau',latitude:47.0105,longitude:28.8638},bucharest:{name:'Bucharest',latitude:44.4268,longitude:26.1025},iasi:{name:'Iasi',latitude:47.1585,longitude:27.6014},kyiv:{name:'Kyiv',latitude:50.4501,longitude:30.5234},warsaw:{name:'Warsaw',latitude:52.2297,longitude:21.0122},berlin:{name:'Berlin',latitude:52.52,longitude:13.405},yoshkar_ola:{name:'Yoshkar-Ola',latitude:56.6388,longitude:47.8908}};
+const CITIES={chisinau:{name:'Chisinau',latitude:47.0105,longitude:28.8638},bucharest:{name:'Bucharest',latitude:44.4268,longitude:26.1025},iasi:{name:'Iasi',latitude:47.1585,longitude:27.6014},kyiv:{name:'Kyiv',latitude:50.4501,longitude:30.5234},warsaw:{name:'Warsaw',latitude:52.2297,longitude:21.0122},berlin:{name:'Berlin',latitude:52.52,longitude:13.405},yoshkar_ola:{name:'Yoshkar-Ola',latitude:56.6388,longitude:47.8908},moscow:{name:'Moscow',latitude:55.7558,longitude:37.6173},sochi:{name:'Sochi',latitude:43.5855,longitude:39.7231}};
 function createLocationService(ctx,settings,log){
  let manual=Object.assign({},DEFAULT_LOCATION); let gpsProvider=null;
  try{if(ctx&&typeof ctx.getLocation==='function')gpsProvider=()=>ctx.getLocation();}catch(e){if(log)log.warn('GPS adapter unavailable: '+e.message);}
