@@ -1,6 +1,6 @@
 # BMW Weather & Road Info (MGU ID7)
 
-OAP app source for BMW iDrive 7 / MGU, version 0.1.1.
+OAP app source for BMW iDrive 7 / MGU, version 0.1.8.
 
 - Weather and 7-day forecast: Open-Meteo.
 - Road works, mapped access restrictions, barriers and impassable surfaces: OpenStreetMap Overpass.
@@ -13,4 +13,4 @@ OSM/Overpass does not provide live traffic speed, reliable current congestion, o
 
 ## Build
 
-Run the GitHub Actions workflow **Build and publish MGU app**. It builds against the public `aurelmarius/bmw-games` app kit and creates a GitHub Release with `aurelm_weather_traffic@0.1.1.tgz`.
+Run the GitHub Actions workflow **Build and publish MGU app**. It builds against the public `aurelmarius/bmw-games` app kit and creates a GitHub Release with `aurelm_weather_traffic@0.1.8.tgz`.
