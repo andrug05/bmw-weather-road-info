@@ -28,6 +28,8 @@ jobs:
           d['version']='${{ inputs.version }}'
           json.dump(d,open(p,'w',encoding='utf-8'),indent=2)
           PY
+      - name: Run source tests
+        run: node bmw-weather-road-info/tests/model.test.js
       - name: Build OAP package
         run: |
           cd upstream
