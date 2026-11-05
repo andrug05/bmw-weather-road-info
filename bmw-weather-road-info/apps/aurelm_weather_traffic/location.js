@@ -4,7 +4,7 @@ const CITIES={berlin:{name:'Berlin',latitude:52.52,longitude:13.405},yoshkar_ola
 function createLocationService(ctx,settings,log){
  let manual=Object.assign({},DEFAULT_LOCATION); let gpsProvider=null;
  try{if(ctx&&typeof ctx.getLocation==='function')gpsProvider=()=>ctx.getLocation();}catch(e){if(log)log.warn('GPS adapter unavailable: '+e.message);}
- function selectedCity(){const id=String(settings.get('city')||'chisinau');return Object.assign({source:'manual'},CITIES[id]||manual);}
+ function selectedCity(){const id=String(settings.get('city')||'yoshkar_ola');return Object.assign({source:'manual'},CITIES[id]||manual);}
  return {
   setManual(value){if(!value||!validCoordinates(Number(value.latitude),Number(value.longitude)))throw new Error('Coordinates out of range');manual={name:String(value.name||'Selected location'),latitude:Number(value.latitude),longitude:Number(value.longitude)};settings.set('city_name',manual.name);settings.set('latitude',manual.latitude);settings.set('longitude',manual.longitude);},
   manual(){return Object.assign({},manual);},
