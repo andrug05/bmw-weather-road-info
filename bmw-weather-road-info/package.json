@@ -1,7 +1,9 @@
 {
-  "name": "aurelm-weather-road-info",
-  "version": "0.1.0",
+  "name": "aurelm_weather_traffic",
+  "version": "0.1.1",
   "private": true,
   "description": "BMW MGU ID7 weather and road information app source",
-  "scripts": { "test": "node tests/model.test.js" }
+  "scripts": {
+    "test": "node tests/model.test.js"
+  }
 }
