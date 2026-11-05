@@ -11,6 +11,9 @@ on:
       - main
     paths:
       - ".github/workflows/release.yml"
+      - "bmw-weather-road-info/apps/aurelm_weather_traffic/**"
+      - "bmw-weather-road-info/tests/**"
+      - "bmw-weather-road-info/README.md"
 permissions:
   contents: write
 jobs:
