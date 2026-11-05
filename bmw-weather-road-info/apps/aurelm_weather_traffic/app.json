@@ -1,0 +1,7 @@
+{
+  "id": "aurelm_weather_traffic",
+  "name": "Weather & Road Info",
+  "version": "0.1.0",
+  "description": "Weather forecast and OpenStreetMap road restrictions for BMW MGU ID7",
+  "entry": "main.js"
+}
