@@ -1,5 +1,6 @@
 'use strict';
 const {getJson}=require('./http');
+const URLSearchParams = require('url').URLSearchParams;
 const {normalizeWeather,validCoordinates}=require('./model');
 async function fetchWeather(location){
  if(!location||!validCoordinates(location.latitude,location.longitude))throw new Error('Invalid weather coordinates');
