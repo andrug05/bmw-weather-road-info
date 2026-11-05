@@ -1,0 +1,56 @@
+name: Build and publish MGU app
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (for example 0.1.1)"
+        required: true
+        default: "0.1.1"
+permissions:
+  contents: write
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: aurelmarius/bmw-games
+          path: upstream
+      - name: Overlay app source
+        run: |
+          mkdir -p upstream/apps/aurelm_weather_traffic
+          cp -a bmw-weather-road-info/apps/aurelm_weather_traffic/. upstream/apps/aurelm_weather_traffic/
+          python3 - <<'PY'
+          import json
+          p='upstream/apps/aurelm_weather_traffic/app.json'
+          d=json.load(open(p,encoding='utf-8'))
+          d['version']='${{ inputs.version }}'
+          json.dump(d,open(p,'w',encoding='utf-8'),indent=2)
+          PY
+      - name: Build OAP package
+        run: |
+          cd upstream
+          python3 kit/tools/build.py aurelm_weather_traffic
+          mkdir -p ../release
+          cp dist/aurelm_weather_traffic@${{ inputs.version }}.tgz ../release/
+      - name: Mark internet requirement
+        run: |
+          python3 - <<'PY'
+          import json, os, tarfile, tempfile
+          artifact='release/aurelm_weather_traffic@${{ inputs.version }}.tgz'
+          with tempfile.TemporaryDirectory() as td:
+              with tarfile.open(artifact,'r:gz') as tf:
+                  tf.extractall(td)
+              p=os.path.join(td,'package','package.json')
+              d=json.load(open(p,encoding='utf-8'))
+              d['mguInternet']=True
+              json.dump(d,open(p,'w',encoding='utf-8'),indent=2)
+              with tarfile.open(artifact,'w:gz') as tf:
+                  tf.add(os.path.join(td,'package'),arcname='package')
+          PY
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ inputs.version }}" "release/aurelm_weather_traffic@${{ inputs.version }}.tgz" --repo "${{ github.repository }}" --title "Weather & Road Info v${{ inputs.version }}" --notes "BMW MGU ID7 OAP package. Requires mgu-uplink for internet access. OSM data is not live traffic."
