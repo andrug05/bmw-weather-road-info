@@ -6,7 +6,7 @@ const mgu = require('./kit/mgu');
 const G = require('./kit/gauges');
 const { fetchWeather } = require('./weather');
 const { fetchRoadInfo } = require('./roads');
-const { createLocationService } = require('./location');
+const { createLocationService, CITIES } = require('./location');
 const { formatTemperature } = require('./model');
 
 const W = 1600, H = 520;
@@ -43,19 +43,29 @@ mgu.run({
     ui.onClick('BTN_WEATHER', () => { tab = 'weather'; });
     ui.onClick('BTN_ROADS', () => { tab = 'roads'; });
     ui.onClick('BTN_LOCATION', async () => {
-      // A configured location list can be wired to this action in the kit's Settings sheet.
-      // Current behavior toggles GPS/manual source when a verified GPS provider exists.
-      if (locations.gpsAvailable()) {
-        settings.set('location_mode', String(settings.get('location_mode') || 'gps') === 'gps' ? 'manual' : 'gps');
+      // The bar button must work even on cars where the OAP GPS adapter is unavailable.
+      // In manual mode it cycles through the configured cities; if GPS exists, first press
+      // switches to manual and subsequent presses cycle cities.
+      const ids = Object.keys(CITIES);
+      const mode = String(settings.get('location_mode') || 'gps');
+      if (mode === 'gps' && locations.gpsAvailable()) {
+        settings.set('location_mode', 'manual');
+      } else {
+        const current = String(settings.get('city') || 'chisinau');
+        const index = ids.indexOf(current);
+        settings.set('city', ids[(index + 1 + ids.length) % ids.length]);
+        settings.set('location_mode', 'manual');
       }
       await refresh();
+      render();
     });
 
     function drawWeather(cv, t) {
       G.panel(cv, t, 34, 92, 960, 392, 'CURRENT WEATHER');
       if (!weather) {
         cv.text('Weather data not loaded', 70, 190, 32, t.dim);
-        cv.text('Press Refresh to try again', 70, 238, 22, t.text);
+        cv.text(error || 'Check mgu-uplink internet connection', 70, 238, 22, t.warn);
+        cv.text('Press Refresh to try again', 70, 278, 22, t.text);
         return;
       }
       cv.text(formatTemperature(weather.temperature), 72, 236, 112, t.text, { font: 'num' });
@@ -99,7 +109,7 @@ mgu.run({
       cv.text(`Road features: ${roads.length}`, 1050, 246, 22, t.text);
       cv.text(`Updated: ${lastUpdate ? new Date(lastUpdate).toLocaleTimeString() : '—'}`, 1050, 286, 20, t.dim);
       cv.text('OSM is not live traffic speed data', 1050, 354, 20, t.warn);
-      cv.text('Use Settings to configure a manual city', 1050, 414, 18, t.dim);
+      cv.text('GPS / Manual button: cycle cities', 1050, 414, 18, t.dim);
       return ui.image('MAIN_GFX', cv);
     }
 
