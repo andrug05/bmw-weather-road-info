@@ -26,12 +26,15 @@ mgu.run({
       busy = true; setStatus('Updating…');
       try {
         location = await locations.current();
-        const results = await Promise.allSettled([fetchWeather(location), fetchRoadInfo(location, 5000)]);
-        if (results[0].status === 'fulfilled') weather = results[0].value;
-        if (results[1].status === 'fulfilled') roads = results[1].value;
-        const failures = results.filter(x => x.status === 'rejected');
+        const results = await Promise.all([
+          fetchWeather(location).then(value => ({ ok: true, value }), error => ({ ok: false, error })),
+          fetchRoadInfo(location, 5000).then(value => ({ ok: true, value }), error => ({ ok: false, error }))
+        ]);
+        if (results[0].ok) weather = results[0].value;
+        if (results[1].ok) roads = results[1].value;
+        const failures = results.filter(x => !x.ok);
         lastUpdate = Date.now();
-        setStatus(failures.length ? failures.map(x => x.reason.message).join(' / ') : 'Updated');
+        setStatus(failures.length ? failures.map(x => x.error.message).join(' / ') : 'Updated');
       } catch (e) { setStatus(e.message); }
       finally { busy = false; }
     }
