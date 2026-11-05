@@ -3,9 +3,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (for example 0.1.8)"
+        description: "Release version (for example 0.1.9)"
         required: true
-        default: "0.1.8"
+        default: "0.1.9"
   push:
     branches:
       - main
@@ -20,7 +20,7 @@ jobs:
   build-release:
     runs-on: ubuntu-latest
     env:
-      VERSION: ${{ inputs.version || '0.1.8' }}
+      VERSION: ${{ inputs.version || '0.1.9' }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/checkout@v5
