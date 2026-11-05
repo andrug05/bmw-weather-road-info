@@ -3,14 +3,21 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (for example 0.1.7)"
+        description: "Release version (for example 0.1.8)"
         required: true
         default: "0.1.8"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/release.yml"
 permissions:
   contents: write
 jobs:
   build-release:
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version || '0.1.8' }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/checkout@v5
@@ -22,10 +29,10 @@ jobs:
           mkdir -p upstream/apps/aurelm_weather_traffic
           cp -a bmw-weather-road-info/apps/aurelm_weather_traffic/. upstream/apps/aurelm_weather_traffic/
           python3 - <<'PY'
-          import json
+          import json, os
           p='upstream/apps/aurelm_weather_traffic/app.json'
           d=json.load(open(p,encoding='utf-8'))
-          d['version']='${{ inputs.version }}'
+          d['version']=os.environ['VERSION']
           json.dump(d,open(p,'w',encoding='utf-8'),indent=2)
           PY
       - name: Run source tests
@@ -35,12 +42,12 @@ jobs:
           cd upstream
           python3 kit/tools/build.py aurelm_weather_traffic
           mkdir -p ../release
-          cp dist/aurelm_weather_traffic@${{ inputs.version }}.tgz ../release/
+          cp "dist/aurelm_weather_traffic@${VERSION}.tgz" ../release/
       - name: Mark internet requirement
         run: |
           python3 - <<'PY'
           import json, os, tarfile, tempfile
-          artifact='release/aurelm_weather_traffic@${{ inputs.version }}.tgz'
+          artifact=f"release/aurelm_weather_traffic@{os.environ['VERSION']}.tgz"
           with tempfile.TemporaryDirectory() as td:
               with tarfile.open(artifact,'r:gz') as tf:
                   tf.extractall(td)
@@ -55,10 +62,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="v${{ inputs.version }}"
-          ASSET="release/aurelm_weather_traffic@${{ inputs.version }}.tgz"
+          TAG="v${VERSION}"
+          ASSET="release/aurelm_weather_traffic@${VERSION}.tgz"
           if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ASSET" --repo "${{ github.repository }}" --clobber
           else
-            gh release create "$TAG" "$ASSET" --repo "${{ github.repository }}" --title "Weather & Road Info v${{ inputs.version }}" --notes "BMW MGU ID7 OAP package. Requires mgu-uplink for internet access. OSM data is not live traffic."
+            gh release create "$TAG" "$ASSET" --repo "${{ github.repository }}" --title "Weather & Road Info v${VERSION}" --notes "BMW MGU ID7 OAP package. Requires mgu-uplink for internet access. OSM data is not live traffic."
           fi
