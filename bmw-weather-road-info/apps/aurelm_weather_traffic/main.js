@@ -8,6 +8,7 @@ const { fetchWeather } = require('./weather');
 const { fetchRoadInfo } = require('./roads');
 const { createLocationService, CITIES } = require('./location');
 const { formatTemperature } = require('./model');
+const http = require('./http');
 
 const W = 1600, H = 520;
 const REFRESH_MS = 10 * 60 * 1000;
@@ -15,6 +16,8 @@ const REFRESH_MS = 10 * 60 * 1000;
 mgu.run({
   async start(ctx) {
     const { ui, settings, log } = ctx;
+    // Configure mgu-uplink lease lookup using this OAP app's own data directory.
+    http.configure(ctx.dataDir);
     const locations = createLocationService(ctx, settings, log);
     let weather = null, roads = [], busy = false, lastUpdate = 0;
     let error = '', location = await locations.current(), tab = 'weather';
