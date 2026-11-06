@@ -1,0 +1,16 @@
+[Unit]
+Description=Weather & Road Info internet fetch service (mgu-uplink UID)
+After=local-fs.target
+RequiresMountsFor=/var/opt
+
+[Service]
+User=root
+ExecStartPre=-/bin/mkdir -p /var/opt/aurelm-weather-net/state
+ExecStart=/usr/bin/node /var/opt/aurelm-weather-net/current/netd.js
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=5
+LimitCORE=1
+
+[Install]
+WantedBy=multi-user.target
