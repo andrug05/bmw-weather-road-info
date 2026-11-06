@@ -86,7 +86,6 @@ function getJson(href, options) {
       });
 
       req.on('socket', socket => {
-        phase = 'TCP connect';
         socket.on('lookup', (err) => {
           if (err) return fail(err);
           phase = 'TCP connect';
