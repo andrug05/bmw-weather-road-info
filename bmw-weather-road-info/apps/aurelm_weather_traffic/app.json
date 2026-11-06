@@ -2,7 +2,7 @@
   "id": "aurelm_weather_traffic",
   "title": "Weather & Road Info",
   "description": "Weather forecast and mapped road restrictions for BMW iDrive 7. Internet via mgu-uplink.",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "vendor": "andrug05",
   "loggingId": "AWR1",
   "screens": [
