@@ -1,48 +1,82 @@
 'use strict';
 /**
- * mgu-uplink DNS support, following nickgcode/idrive7-apps kit/runtime/uplink.js.
- * The app's UID gets the route; this module resolves hostnames through the DNS
- * servers carried in the mgu-uplink lease rather than the MGU system resolver.
+ * Resolve through the DNS servers supplied by mgu-uplink.
+ * Internet routing itself is provided to the app UID by package.json mguInternet.
  */
 const dns = require('dns');
 const fs = require('fs');
 const path = require('path');
 
-function lease(dataDir) {
-  const files = [dataDir ? path.join(dataDir, 'uplink.json') : '', '/run/mgu-uplink/lease.json'];
-  for (let i = 0; i < files.length; i++) {
-    if (!files[i]) continue;
+function readLease(dataDir) {
+  const candidates = [
+    dataDir && path.join(dataDir, 'uplink.json'),
+    dataDir && path.join(dataDir, 'mgu-uplink', 'lease.json'),
+    '/run/mgu-uplink/lease.json'
+  ];
+  for (const file of candidates) {
+    if (!file) continue;
     try {
-      const value = JSON.parse(fs.readFileSync(files[i], 'utf8'));
-      if (value && value.ip) return value;
+      const value = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (value && Array.isArray(value.dns) && value.dns.length) {
+        const servers = value.dns.filter(s => typeof s === 'string' && s.trim());
+        if (servers.length) return Object.assign({}, value, { dns: servers, leasePath: file });
+      }
     } catch (e) {}
   }
   return null;
 }
+
 function resolver() {
-  let current = null, serversKey = '';
+  let instance = null;
+  let serversKey = '';
   return function lookupFor(currentLease) {
-    const servers = currentLease && Array.isArray(currentLease.dns)
-      ? currentLease.dns.filter(s => typeof s === 'string' && s) : [];
-    if (!servers.length) return undefined;
+    const servers = currentLease && currentLease.dns;
+    if (!Array.isArray(servers) || !servers.length) return null;
     const key = servers.join(',');
     if (key !== serversKey) {
-      current = new dns.Resolver();
-      current.setServers(servers);
+      instance = new dns.Resolver();
+      instance.setServers(servers);
       serversKey = key;
     }
-    const instance = current;
+    const activeResolver = instance;
     return function lookup(hostname, options, callback) {
-      if (typeof options === 'function') callback = options;
-      instance.resolve4(hostname, (err, addresses) => {
-        if (err || !addresses || !addresses.length) callback(err || new Error('No IPv4 address for ' + hostname));
-        else callback(null, addresses[0], 4);
+      if (typeof options === 'function') {
+        callback = options;
+        options = {};
+      }
+      options = options || {};
+      let completed = false;
+      const done = (err, address, family) => {
+        if (completed) return;
+        completed = true;
+        if (err) return callback(err);
+        if (options.all) return callback(null, [{ address, family }]);
+        callback(null, address, family);
+      };
+      activeResolver.resolve4(hostname, (err, addresses) => {
+        if (err) return done(new Error('mgu-uplink DNS failed for ' + hostname + ': ' + err.message));
+        if (!addresses || !addresses.length) return done(new Error('mgu-uplink DNS returned no IPv4 address for ' + hostname));
+        done(null, addresses[0], 4);
       });
     };
   };
 }
+
 function create(dataDir) {
   const lookupFor = resolver();
-  return { lease: () => lease(dataDir), lookup: () => lookupFor(lease(dataDir)) };
+  return {
+    lease: () => readLease(dataDir),
+    lookup: () => {
+      const currentLease = readLease(dataDir);
+      return currentLease ? lookupFor(currentLease) : null;
+    },
+    status: () => {
+      const currentLease = readLease(dataDir);
+      return currentLease
+        ? { available: true, dns: currentLease.dns, ip: currentLease.ip || null, path: currentLease.leasePath }
+        : { available: false, dns: [], ip: null, path: null };
+    }
+  };
 }
-module.exports = { lease, resolver, create };
+
+module.exports = { lease: readLease, resolver, create };
