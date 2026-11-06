@@ -1,7 +1,5 @@
 'use strict';
-/** BMW Weather & Road Info — MGU ID7 / OAP SDK app entry point.
- * The UI follows the bmw-games app contract (mgu.run, ctx.canvas, ui.image, ctx.loop).
- */
+/** BMW Weather & Road Info — MGU ID7 / OAP SDK app entry point. */
 const mgu = require('./kit/mgu');
 const G = require('./kit/gauges');
 const { fetchWeather } = require('./weather');
@@ -12,62 +10,93 @@ const http = require('./http');
 
 const W = 1600, H = 520;
 const REFRESH_MS = 10 * 60 * 1000;
+const LOCATION_TIMEOUT_MS = 8000;
+const DATA_TIMEOUT_MS = 25000;
+
+function withTimeout(promise, ms, label) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(label + ' timeout (' + ms + ' ms)')), ms);
+    Promise.resolve(promise).then(
+      value => { clearTimeout(timer); resolve(value); },
+      error => { clearTimeout(timer); reject(error); }
+    );
+  });
+}
 
 mgu.run({
   async start(ctx) {
     const { ui, settings, log } = ctx;
-    // Configure mgu-uplink lease lookup using this OAP app's own data directory.
     http.configure(ctx.dataDir);
     const locations = createLocationService(ctx, settings, log);
     let weather = null, roads = [], busy = false, lastUpdate = 0;
-    let error = '', location = await locations.current(), tab = 'weather';
+    let error = '', phase = 'Ready', location = locations.manual(), tab = 'weather';
     let visible = false;
     const setStatus = (s) => { error = s || ''; };
 
     async function refresh() {
       if (busy) return;
-      busy = true; setStatus('Updating…');
+      busy = true;
+      phase = 'Getting location';
+      setStatus('');
+      render();
       try {
-        location = await locations.current();
+        try {
+          location = await withTimeout(locations.current(), LOCATION_TIMEOUT_MS, 'Location');
+        } catch (e) {
+          log.warn('Location stage: ' + e.message);
+          location = locations.manual();
+          setStatus('GPS: ' + e.message);
+        }
+
+        phase = 'Loading weather and road data';
+        render();
         const results = await Promise.all([
-          fetchWeather(location).then(value => ({ ok: true, value }), error => ({ ok: false, error })),
-          fetchRoadInfo(location, 5000).then(value => ({ ok: true, value }), error => ({ ok: false, error }))
+          withTimeout(fetchWeather(location), DATA_TIMEOUT_MS, 'Weather request')
+            .then(value => ({ ok: true, value }), err => ({ ok: false, error: err })),
+          withTimeout(fetchRoadInfo(location, 5000), DATA_TIMEOUT_MS, 'Road request')
+            .then(value => ({ ok: true, value }), err => ({ ok: false, error: err }))
         ]);
         if (results[0].ok) weather = results[0].value;
         if (results[1].ok) roads = results[1].value;
         const failures = results.filter(x => !x.ok);
         lastUpdate = Date.now();
-        setStatus(failures.length ? failures.map(x => x.error.message).join(' / ') : 'Updated');
-      } catch (e) { setStatus(e.message); }
-      finally { busy = false; }
+        const messages = failures.map(x => x.error && x.error.message ? x.error.message : String(x.error));
+        if (messages.length) setStatus(messages.join(' / '));
+        else if (!error) setStatus('Updated');
+        phase = failures.length ? 'Update failed' : 'Updated';
+        if (failures.length) log.warn('Refresh failed: ' + messages.join(' / '));
+      } catch (e) {
+        setStatus(e && e.message ? e.message : String(e));
+        phase = 'Update failed';
+        log.warn('Refresh stage failed: ' + error);
+      } finally {
+        busy = false;
+        render();
+      }
     }
 
     ui.onClick('BTN_REFRESH', refresh);
-    ui.onClick('BTN_WEATHER', () => { tab = 'weather'; });
-    ui.onClick('BTN_ROADS', () => { tab = 'roads'; });
+    ui.onClick('BTN_WEATHER', () => { tab = 'weather'; render(); });
+    ui.onClick('BTN_ROADS', () => { tab = 'roads'; render(); });
     ui.onClick('BTN_LOCATION', async () => {
-      // The bar button must work even on cars where the OAP GPS adapter is unavailable.
-      // In manual mode it cycles through the configured cities; if GPS exists, first press
-      // switches to manual and subsequent presses cycle cities.
       const ids = Object.keys(CITIES);
       const mode = String(settings.get('location_mode') || 'gps');
       if (mode === 'gps' && locations.gpsAvailable()) {
         settings.set('location_mode', 'manual');
       } else {
-        const current = String(settings.get('city') || 'chisinau');
+        const current = String(settings.get('city') || 'yoshkar_ola');
         const index = ids.indexOf(current);
         settings.set('city', ids[(index + 1 + ids.length) % ids.length]);
         settings.set('location_mode', 'manual');
       }
       await refresh();
-      render();
     });
 
     function drawWeather(cv, t) {
       G.panel(cv, t, 34, 92, 960, 392, 'CURRENT WEATHER');
       if (!weather) {
         cv.text('Weather data not loaded', 70, 190, 32, t.dim);
-        cv.text(error || 'Check mgu-uplink internet connection', 70, 238, 22, t.warn);
+        cv.text(error || phase || 'Check mgu-uplink internet connection', 70, 238, 22, t.warn);
         cv.text('Press Refresh to try again', 70, 278, 22, t.text);
         return;
       }
@@ -91,6 +120,7 @@ mgu.run({
       if (!roads.length) {
         cv.text('No matching OSM features in 5 km', 70, 218, 26, t.dim);
         cv.text('This does not mean roads are clear.', 70, 260, 21, t.warn);
+        if (error) cv.text(error.slice(0, 70), 70, 302, 18, t.warn);
         return;
       }
       roads.slice(0, 6).forEach((r, i) => {
@@ -103,7 +133,7 @@ mgu.run({
     function render() {
       const t = ctx.theme();
       const cv = ctx.canvas(W, H).clear(t.bg);
-      G.frame(cv, t, ['Weather & Road Info'], 0, [{ text: busy ? 'Updating' : (error || 'Ready'), color: error && error !== 'Updated' ? 'warn' : 'accent' }]);
+      G.frame(cv, t, ['Weather & Road Info'], 0, [{ text: busy ? phase : (error || 'Ready'), color: error && error !== 'Updated' ? 'warn' : 'accent' }]);
       cv.text(location.name || 'Selected location', 36, 68, 22, t.dim);
       if (tab === 'weather') drawWeather(cv, t); else drawRoads(cv, t);
       G.panel(cv, t, 1020, 92, 546, 392, 'LOCATION & STATUS');
@@ -121,6 +151,5 @@ mgu.run({
     ctx.loop('MAIN', 1000, render);
     await refresh();
     setInterval(() => { if (visible && Date.now() - lastUpdate >= REFRESH_MS) refresh(); }, 30000);
-    Promise.resolve().then(render).catch(e => log.warn('initial render: ' + e.message));
   }
 });
