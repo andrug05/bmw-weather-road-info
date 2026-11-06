@@ -1,16 +1,11 @@
 'use strict';
-// HTTPS using the DNS servers supplied in the active mgu-uplink lease.
-// The route itself is selected by mgu-uplink from this app's UID.
+// HTTPS through the mgu-uplink route, resolving hostnames with the DNS servers
+// from this app's uplink.json lease (same approach as nickgcode/idrive7-apps).
 const https = require('https');
 const url = require('url');
 const uplink = require('./uplink');
-
 let network = uplink.create(process.cwd());
-
-function configure(dataDir) {
-  network = uplink.create(dataDir || process.cwd());
-}
-
+function configure(dataDir) { network = uplink.create(dataDir || process.cwd()); }
 function getJson(href, options) {
   options = options || {};
   return new Promise((resolve, reject) => {
@@ -29,7 +24,6 @@ function getJson(href, options) {
     };
     const lookup = network.lookup();
     if (lookup) requestOptions.lookup = lookup;
-
     let settled = false;
     const fail = err => {
       if (settled) return;
@@ -40,6 +34,7 @@ function getJson(href, options) {
       let body = '';
       if (typeof res.setEncoding === 'function') res.setEncoding('utf8');
       res.on('data', chunk => {
+        if (settled) return;
         body += chunk;
         if (body.length > 3 * 1024 * 1024) {
           req.abort();
@@ -52,12 +47,8 @@ function getJson(href, options) {
           fail(new Error('HTTP ' + res.statusCode));
           return;
         }
-        try {
-          settled = true;
-          resolve(JSON.parse(body));
-        } catch (e) {
-          fail(new Error('Invalid JSON: ' + e.message));
-        }
+        try { settled = true; resolve(JSON.parse(body)); }
+        catch (e) { fail(new Error('Invalid JSON: ' + e.message)); }
       });
       res.on('error', fail);
     });
@@ -70,5 +61,4 @@ function getJson(href, options) {
     req.end();
   });
 }
-
 module.exports = { configure, getJson };
