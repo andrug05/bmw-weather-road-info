@@ -1,16 +1,32 @@
 # BMW Weather & Road Info (MGU ID7)
 
-OAP app source for BMW iDrive 7 / MGU, version 0.1.8.
+Weather and road information app for BMW iDrive 7 / MGU.
+
+## Internet transport
+
+The app now follows the networking architecture used by RideTube:
+- a separate root tool, `aurelm-weather-net`, owns the local Unix socket;
+- the tool allocates a dedicated free UID outside MainApp's application UID ranges;
+- that UID is registered in `/var/opt/mgu-uplink/uids.d/aurelm-weather-net`;
+- each HTTPS request is executed by a short-lived child process running as that UID (never as root);
+- the app sends requests to the local socket and does not require the MGU system/root network route.
+
+The app must be installed from the repository's MGU Store catalog so the service dependency is installed first. The Store source is:
+`andr ug05/bmw-weather-road-info` (GitHub repository source; select its `catalog` release).
+
+## Data sources
 
 - Weather and 7-day forecast: Open-Meteo.
-- Road works, mapped access restrictions, barriers and impassable surfaces: OpenStreetMap Overpass.
-- Location: vehicle GPS only if the installed runtime exposes a verified `ctx.getLocation()` provider; otherwise Settings offers a manual city selection.
-- Internet: requires Robert Nisipeanu's `mgu-uplink`; the release build marks the package with `mguInternet: true`.
+- Road works, access restrictions, barriers and impassable surfaces: OpenStreetMap Overpass.
+- OSM data is not live traffic speed, congestion or guaranteed real-time incident data.
 
-## Limitations
+## Troubleshooting
 
-OSM/Overpass does not provide live traffic speed, reliable current congestion, or guaranteed up-to-date incident reports. GPS integration is guarded and has not yet been verified on a physical MGU ID7 head unit.
-
-## Build
-
-Run the GitHub Actions workflow **Build and publish MGU app**. It builds against the public `aurelmarius/bmw-games` app kit and creates a GitHub Release with `aurelm_weather_traffic@0.1.8.tgz`.
+On the MGU over SSH:
+```sh
+systemctl status aurelm-weather-net
+journalctl -u aurelm-weather-net -b
+cat /var/opt/aurelm-weather-net/state/uids.json
+cat /var/opt/mgu-uplink/uids.d/aurelm-weather-net
+/var/opt/mgu-uplink/mgu-uplink status
+```
