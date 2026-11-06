@@ -1,35 +1,29 @@
-name: Build and publish MGU app and internet tool
+name: Build and publish Weather & Road Info
 on:
   workflow_dispatch:
     inputs:
       version:
         description: "App version"
         required: true
-        default: "0.2.0"
+        default: "0.2.1"
   push:
     branches: [main]
     paths:
       - ".github/workflows/release.yml"
       - "bmw-weather-road-info/**"
-      - "native/aurelm-weather-net/**"
 permissions:
   contents: write
 jobs:
   build-release:
     runs-on: ubuntu-latest
     env:
-      APP_VERSION: ${{ inputs.version || '0.2.0' }}
-      TOOL_VERSION: "0.1.0"
+      APP_VERSION: ${{ inputs.version || '0.2.1' }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/checkout@v5
         with:
           repository: aurelmarius/bmw-games
           path: upstream
-      - uses: actions/checkout@v5
-        with:
-          repository: robertnisipeanu/mgu-store
-          path: mgu-store
       - name: Build app
         run: |
           mkdir -p upstream/apps/aurelm_weather_traffic
@@ -39,8 +33,12 @@ jobs:
           p='upstream/apps/aurelm_weather_traffic/app.json'
           d=json.load(open(p,encoding='utf-8'))
           d['version']=os.environ['APP_VERSION']
+          d['internet']=True
           json.dump(d,open(p,'w',encoding='utf-8'),indent=2)
           PY
+          node --check upstream/apps/aurelm_weather_traffic/main.js
+          node --check upstream/apps/aurelm_weather_traffic/http.js
+          node --check upstream/apps/aurelm_weather_traffic/uplink.js
           node bmw-weather-road-info/tests/model.test.js
           cd upstream
           python3 kit/tools/build.py aurelm_weather_traffic
@@ -49,35 +47,29 @@ jobs:
           cd ..
           python3 - <<'PY'
           import json, os, tarfile, tempfile
-          p=f"release/aurelm_weather_traffic@{os.environ['APP_VERSION']}.tgz"
+          artifact=f"release/aurelm_weather_traffic@{os.environ['APP_VERSION']}.tgz"
           with tempfile.TemporaryDirectory() as td:
-              with tarfile.open(p,'r:gz') as tf: tf.extractall(td)
-              pkg=os.path.join(td,'package','package.json')
-              d=json.load(open(pkg,encoding='utf-8'))
-              d.pop('mguInternet',None)
-              json.dump(d,open(pkg,'w',encoding='utf-8'),indent=2)
-              with tarfile.open(p,'w:gz') as tf: tf.add(os.path.join(td,'package'),arcname='package')
+              with tarfile.open(artifact,'r:gz') as tf: tf.extractall(td)
+              package=os.path.join(td,'package','package.json')
+              data=json.load(open(package,encoding='utf-8'))
+              data['mguInternet']=True
+              json.dump(data,open(package,'w',encoding='utf-8'),indent=2)
+              with tarfile.open(artifact,'w:gz') as tf: tf.add(os.path.join(td,'package'),arcname='package')
           PY
-      - name: Check and build internet tool
-        run: |
-          node --check native/aurelm-weather-net/netd.js
-          node mgu-store/deploy/hu artifact "$GITHUB_WORKSPACE/native/aurelm-weather-net" --out "$GITHUB_WORKSPACE/release"
       - name: Build catalog
         run: |
           python3 - <<'PY'
           import hashlib, json, os
-          owner=os.environ['GITHUB_REPOSITORY']
-          base='https://github.com/'+owner+'/releases/download/'
-          entries=[]
-          for ident,ver,kind,requires in [
-            ('aurelm_weather_traffic',os.environ['APP_VERSION'],'app',{'aurelm-weather-net':os.environ['TOOL_VERSION'],'mgu-deploy':'0.7.0'}),
-            ('aurelm-weather-net',os.environ['TOOL_VERSION'],'tool',{'mgu-deploy':'0.7.0'})
-          ]:
-            name=f'{ident}@{ver}.tgz'
-            path='release/'+name
-            h=hashlib.sha256(open(path,'rb').read()).hexdigest()
-            entries.append({'id':ident,'kind':kind,'title':'Weather & Road Info' if kind=='app' else 'Weather & Road Internet Service','description':'BMW MGU ID7 weather and road information' if kind=='app' else 'Dedicated mgu-uplink internet fetch service','version':ver,'artifact':{'name':name,'size':os.path.getsize(path),'sha256':h,'url':base+ident+'@'+ver+'/'+name},'requires':requires,'uninstallable':True,'mguHmi':['ID7']})
-          json.dump({'schema':2,'components':entries},open('release/catalog.json','w'),indent=2)
+          version=os.environ['APP_VERSION']
+          name=f'aurelm_weather_traffic@{version}.tgz'
+          path='release/'+name
+          entry={'id':'aurelm_weather_traffic','kind':'app','title':'Weather & Road Info',
+            'description':'BMW MGU ID7 weather and road information; internet through mgu-uplink lease DNS.',
+            'version':version,'artifact':{'name':name,'size':os.path.getsize(path),
+            'sha256':hashlib.sha256(open(path,'rb').read()).hexdigest(),
+            'url':'https://github.com/'+os.environ['GITHUB_REPOSITORY']+'/releases/download/aurelm_weather_traffic%40'+version+'/'+name},
+            'uninstallable':True,'mguHmi':['ID7']}
+          json.dump({'schema':2,'components':[entry]},open('release/catalog.json','w'),indent=2)
           PY
       - name: Publish app release
         env:
@@ -88,18 +80,7 @@ jobs:
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ASSET" --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create "$TAG" "$ASSET" --repo "$GITHUB_REPOSITORY" --title "Weather & Road Info ${APP_VERSION}" --notes "BMW MGU ID7 app. Requires aurelm-weather-net internet tool."
-          fi
-      - name: Publish internet tool release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG="aurelm-weather-net@${TOOL_VERSION}"
-          ASSET="release/aurelm-weather-net@${TOOL_VERSION}.tgz"
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$ASSET" --repo "$GITHUB_REPOSITORY" --clobber
-          else
-            gh release create "$TAG" "$ASSET" --repo "$GITHUB_REPOSITORY" --title "Weather & Road Internet Service ${TOOL_VERSION}" --notes "Dedicated mgu-uplink UID fetch service."
+            gh release create "$TAG" "$ASSET" --repo "$GITHUB_REPOSITORY" --title "Weather & Road Info ${APP_VERSION}" --notes "mgu-uplink lease DNS resolver following nickgcode/idrive7-apps."
           fi
       - name: Publish catalog
         env:
@@ -108,5 +89,5 @@ jobs:
           if gh release view catalog --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload catalog release/catalog.json --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create catalog release/catalog.json --repo "$GITHUB_REPOSITORY" --title "MGU Store catalog" --notes "Weather & Road Info app and its mgu-uplink internet service."
+            gh release create catalog release/catalog.json --repo "$GITHUB_REPOSITORY" --title "MGU Store catalog" --notes "Weather & Road Info."
           fi
