@@ -12,7 +12,7 @@ The app now follows the networking architecture used by RideTube:
 - the app sends requests to the local socket and does not require the MGU system/root network route.
 
 The app must be installed from the repository's MGU Store catalog so the service dependency is installed first. The Store source is:
-`andr ug05/bmw-weather-road-info` (GitHub repository source; select its `catalog` release).
+`andrug05/bmw-weather-road-info` (GitHub repository source; select its `catalog` release).
 
 ## Data sources
 
