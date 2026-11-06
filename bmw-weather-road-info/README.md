@@ -1,18 +1,24 @@
-# BMW Weather & Road Info (MGU ID7)
+# BMW Weather & Road Info
 
-Weather and road information app for BMW iDrive 7 / MGU.
+Weather forecasts and mapped road restrictions for BMW G05 / MGU ID7.
 
-## Internet transport
+## Internet connection
 
-The app now follows the networking architecture used by RideTube:
-- a separate root tool, `aurelm-weather-net`, owns the local Unix socket;
-- the tool allocates a dedicated free UID outside MainApp's application UID ranges;
-- that UID is registered in `/var/opt/mgu-uplink/uids.d/aurelm-weather-net`;
-- each HTTPS request is executed by a short-lived child process running as that UID (never as root);
-- the app sends requests to the local socket and does not require the MGU system/root network route.
+The app follows the networking method in [nickgcode/idrive7-apps](https://github.com/nickgcode/idrive7-apps):
 
-The app must be installed from the repository's MGU Store catalog so the service dependency is installed first. The Store source is:
-`andrug05/bmw-weather-road-info` (GitHub repository source; select its `catalog` release).
+- The OAP package declares `mguInternet: true`, so mgu-uplink routes traffic for this app's UID.
+- mgu-uplink writes the active lease to the app data directory as `uplink.json`.
+- The lease contains the uplink DNS servers. The MGU system resolver is not used for external hostnames.
+- `uplink.js` reads that lease and creates a per-request Node.js `lookup` callback using `dns.Resolver`.
+- `http.js` passes that callback to `https.request()`.
+
+There is no separate root daemon, custom UID allocator, or local socket service. The app reads
+`ctx.dataDir/uplink.json` and falls back to `/run/mgu-uplink/lease.json`.
+
+## Install
+
+Add `andrug05/bmw-weather-road-info` as a source in MGU Store and install/update
+**Weather & Road Info**. The catalog is published in the GitHub Release named `catalog`.
 
 ## Data sources
 
@@ -20,13 +26,14 @@ The app must be installed from the repository's MGU Store catalog so the service
 - Road works, access restrictions, barriers and impassable surfaces: OpenStreetMap Overpass.
 - OSM data is not live traffic speed, congestion or guaranteed real-time incident data.
 
-## Troubleshooting
+## Diagnostics
 
 On the MGU over SSH:
+
 ```sh
-systemctl status aurelm-weather-net
-journalctl -u aurelm-weather-net -b
-cat /var/opt/aurelm-weather-net/state/uids.json
-cat /var/opt/mgu-uplink/uids.d/aurelm-weather-net
+cat /var/opt/public/oap/oap_*/data/uplink.json
+cat /run/mgu-uplink/lease.json
 /var/opt/mgu-uplink/mgu-uplink status
 ```
+
+The app log is in its OAP data directory as `aurelm_weather_traffic.log`.
