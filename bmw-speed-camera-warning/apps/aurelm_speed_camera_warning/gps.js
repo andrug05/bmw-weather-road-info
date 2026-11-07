@@ -6,7 +6,6 @@
  * No shell daemon, external GPS, internet, or coordinate writes.
  */
 const EventEmitter = require('events');
-const someipBuilders = require('oap-sdk/src/someip/someipBuilders');
 
 const INTERFACE = 'de.bmw.infotainment.SatellitePositioning';
 const INSTANCE = '1';
@@ -109,6 +108,7 @@ class BmwGps extends EventEmitter {
         super();
         const o = options || {};
         this.timeoutMs = o.timeoutMs || 10000;
+        this.builders = o.builders || null;
         this.retryMs = o.retryMs || 10000;
         this.retryMaxMs = o.retryMaxMs || 60000;
         this.running = false;
@@ -162,7 +162,8 @@ class BmwGps extends EventEmitter {
         const attempt = ++this.attempt;
         let proxy;
         Promise.resolve().then(() => {
-            return someipBuilders.buildAndInitTypedProxy(INTERFACE, INSTANCE, this.timeoutMs);
+            const builders = this.builders || require('oap-sdk/src/someip/someipBuilders');
+            return builders.buildAndInitTypedProxy(INTERFACE, INSTANCE, this.timeoutMs);
         }).then((p) => {
             if (!this.running || generation !== this.generation || attempt !== this.attempt) return;
             proxy = p;
