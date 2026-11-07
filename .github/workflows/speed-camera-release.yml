@@ -85,6 +85,20 @@ jobs:
           cp "dist/${APP_ID}@${APP_VERSION}.tgz" ../release/
           cp "dist/${APP_ID}@${APP_VERSION}.mgu" ../release/
 
+      - name: Validate MGU Store release layout
+        run: |
+          test -s "release/${APP_ID}@${APP_VERSION}.tgz"
+          test -s "release/${APP_ID}@${APP_VERSION}.mgu"
+          python3 - <<'PY'
+          import json, os
+          p=f"bmw-speed-camera-warning/apps/{os.environ['APP_ID']}/app.json"
+          d=json.load(open(p,encoding='utf-8'))
+          if d.get('id') != os.environ['APP_ID']:
+              raise SystemExit('app.json id does not match APP_ID')
+          if not os.environ['APP_ID'].startswith('aurelm_'):
+              raise SystemExit('MGU app id must have a unique vendor prefix')
+          PY
+
       - name: Publish standalone app
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
