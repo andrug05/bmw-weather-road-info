@@ -71,6 +71,8 @@ jobs:
             'uninstallable':True,'mguHmi':['ID7']}
           json.dump({'schema':2,'components':[entry]},open('release/catalog.json','w'),indent=2)
           PY
+          cp release/catalog.json catalog.json
+          PY
       - name: Publish app release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -86,6 +88,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add catalog.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish MGU Store catalog"
+            git push
+          fi
           if gh release view catalog --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload catalog release/catalog.json --repo "$GITHUB_REPOSITORY" --clobber
           else
