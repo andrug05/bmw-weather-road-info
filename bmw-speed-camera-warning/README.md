@@ -2,24 +2,28 @@
 
 Standalone BMW MGU ID7 application. Package ID: `aurelm_speed_camera_warning`.
 
-## Version 0.1.0 — offline camera directory
+## Version 0.2.0 — BMW GPS integration
 
-The app is packaged independently and includes:
-- native MGU menu with city selection;
-- local camera directory for Yoshkar-Ola;
-- previous/next navigation through camera records;
-- local database with no dependency on the Weather app or internet access.
+GPS is read from the vehicle's native SOME/IP broadcast:
+- interface: `de.bmw.infotainment.SatellitePositioning`;
+- instance: `1`;
+- broadcast: `updatePosition`;
+- payload: BMW NMEA string (`nmeaString`).
 
-## Known limitations
+This follows the read-only BMW GPS bridge pattern used by [istt1899/bmw-kaluga-cameras](https://github.com/istt1899/bmw-kaluga-cameras), but does not copy its camera daemon, Waze/cluster rendering, Kaluga-specific coordinates, or audio implementation.
 
-- GPS proximity detection is not active: the vehicle-position SOME/IP interface has not yet been confirmed on the target MGU.
-- Voice output is disabled; the app does not alter radio or system volume.
-- Camera records are informational. Addresses are not verified GPS points and must not be treated as guaranteed camera locations.
-- Moscow and Sochi lists are empty pending verified data.
+The app validates NMEA checksums, pairs RMC/GGA epochs, checks UTC freshness and coordinate consistency, and accepts metre accuracy only when a matching GST sentence is present. GPS display shows live coordinates, speed/course data is parsed for future proximity logic. The OAP package is configured for high-priority background execution so the GPS subscription can remain active while native BMW navigation is foreground.
 
-The app does not use Weather 0.2.7 or the Weather & Road Info source, runtime, dependencies or networking code.
+## Current limitations
+
+- GPS event subscription and parser are implemented, but must still be tested on the target MGU. Until then, treat GPS status as experimental.
+- Camera records currently contain descriptive addresses, not verified latitude/longitude points. No proximity alert is generated from those descriptions.
+- Camera voice announcements remain disabled. No radio/system volume is changed.
+- Moscow and Sochi lists are empty pending verified camera records.
+
+No Weather 0.2.7 source, runtime, dependencies or networking code is used.
 
 ## Build
 
 GitHub Actions workflow: `.github/workflows/speed-camera-release.yml`.
-Manual workflow dispatch accepts a release version. A successful run publishes `.tgz` and `.mgu` files as a GitHub Release.
+Manual workflow dispatch defaults to 0.2.0 and publishes separate `.tgz` and `.mgu` assets.
