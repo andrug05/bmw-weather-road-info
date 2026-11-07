@@ -82,8 +82,8 @@ function getJson(href, options) {
         }
         try {
           const body = typeof response.body === 'string' ? response.body : '';
-          resolve(JSON.parse(body));
-          finish(null, JSON.parse(body));
+          const data = JSON.parse(body);
+          finish(null, data);
         } catch (e) {
           finish(new Error('Weather API returned invalid JSON: ' + e.message));
         }
