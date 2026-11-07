@@ -1,8 +1,8 @@
 {
   "id": "aurelm_weather_traffic",
   "title": "Weather & Road Info",
-  "description": "Global 7Timer! weather forecast and mapped road restrictions for BMW iDrive 7 via mgu-uplink.",
-  "version": "0.2.6",
+  "description": "7Timer! global weather forecast and OpenStreetMap road information via mgu-uplink.",
+  "version": "0.2.7",
   "vendor": "andrug05",
   "loggingId": "AWR1",
   "screens": [
@@ -11,22 +11,10 @@
       "kind": "canvas",
       "title": "Weather & Road Info",
       "buttons": [
-        [
-          "BTN_REFRESH",
-          "Refresh"
-        ],
-        [
-          "BTN_WEATHER",
-          "Weather"
-        ],
-        [
-          "BTN_ROADS",
-          "Roads"
-        ],
-        [
-          "BTN_LOCATION",
-          "Next city / GPS"
-        ]
+        ["BTN_REFRESH", "Refresh"],
+        ["BTN_WEATHER", "Weather"],
+        ["BTN_ROADS", "Roads"],
+        ["BTN_LOCATION", "Next city / GPS"]
       ]
     }
   ],
@@ -36,16 +24,7 @@
       "label": "Location source",
       "type": "choice",
       "default": "gps",
-      "options": [
-        [
-          "gps",
-          "Vehicle GPS"
-        ],
-        [
-          "manual",
-          "Manual city"
-        ]
-      ]
+      "options": [["gps", "Vehicle GPS"], ["manual", "Manual city"]]
     },
     {
       "key": "city",
@@ -53,22 +32,10 @@
       "type": "choice",
       "default": "yoshkar_ola",
       "options": [
-        [
-          "berlin",
-          "Berlin"
-        ],
-        [
-          "yoshkar_ola",
-          "Yoshkar-Ola"
-        ],
-        [
-          "moscow",
-          "Moscow"
-        ],
-        [
-          "sochi",
-          "Sochi"
-        ]
+        ["berlin", "Berlin"],
+        ["yoshkar_ola", "Yoshkar-Ola"],
+        ["moscow", "Moscow"],
+        ["sochi", "Sochi"]
       ]
     }
   ],
