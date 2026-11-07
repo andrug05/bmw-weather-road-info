@@ -1,8 +1,8 @@
 {
   "id": "aurelm_speed_camera_warning",
   "title": "Speed Camera Warning",
-  "description": "Offline справочник дорожных камер для BMW MGU ID7. GPS-оповещения и голос отключены до проверки интерфейсов автомобиля.",
-  "version": "0.2.0",
+  "description": "Локальная база камер с обновлением через интернет и GPS-предупреждениями 700/500/200 м.",
+  "version": "0.3.0",
   "vendor": "Andrug05",
   "loggingId": "SCAM",
   "iconGlyph": "camera",
@@ -60,7 +60,7 @@
         [
           "text",
           "INFO",
-          "Локальная база камер"
+          "Локальная база; автообновление при наличии сети"
         ],
         [
           "text",
@@ -71,6 +71,11 @@
           "text",
           "GPS_ACCURACY",
           "Точность: не подтверждена"
+        ],
+        [
+          "text",
+          "ALERT",
+          "Предупреждение: нет"
         ]
       ]
     }
