@@ -102,10 +102,10 @@ mgu.run({
       }
       cv.text(formatTemperature(weather.temperature), 72, 236, 112, t.text, { font: 'num' });
       cv.text(weather.description, 300, 160, 34, t.text, { font: 'bold' });
-      cv.text(`Feels like ${formatTemperature(weather.feelsLike)}`, 302, 202, 23, t.dim);
+      if (Number.isFinite(weather.feelsLike)) cv.text(`Feels like ${formatTemperature(weather.feelsLike)}`, 302, 202, 23, t.dim);
       cv.text(`Humidity  ${Math.round(weather.humidity)}%`, 302, 254, 23, t.text);
-      cv.text(`Wind  ${Math.round(weather.wind)} km/h`, 302, 292, 23, t.text);
-      cv.text(`Precipitation  ${weather.precipitation} mm`, 302, 330, 23, t.text);
+      cv.text(`Wind ~${Math.round(weather.wind)} km/h`, 302, 292, 23, t.text);
+      cv.text(`Precipitation rate ~${weather.precipitation} mm/h`, 302, 330, 23, t.text);
       cv.text('7-DAY FORECAST', 70, 392, 19, t.dim, { font: 'bold', spacing: 1.2 });
       weather.daily.slice(0, 5).forEach((d, i) => {
         const x = 70 + i * 172;
@@ -141,7 +141,7 @@ mgu.run({
       cv.text(`Coordinates: ${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`, 1050, 192, 18, t.dim);
       cv.text(`Road features: ${roads.length}`, 1050, 246, 22, t.text);
       cv.text(`Updated: ${lastUpdate ? new Date(lastUpdate).toLocaleTimeString() : '—'}`, 1050, 286, 20, t.dim);
-      cv.text('OSM is not live traffic speed data', 1050, 354, 20, t.warn);
+      cv.text('Weather: 7Timer! / GFS forecast', 1050, 354, 20, t.warn);
       cv.text('GPS / Manual button: cycle cities', 1050, 414, 18, t.dim);
       return ui.image('MAIN_GFX', cv);
     }
