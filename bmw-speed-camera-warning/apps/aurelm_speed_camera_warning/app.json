@@ -1,8 +1,8 @@
 {
   "id": "aurelm_speed_camera_warning",
   "title": "Speed Camera Warning",
-  "description": "Офлайн-карта камер Йошкар-Олы, локальная база и GPS-предупреждения.",
-  "version": "0.4.0",
+  "description": "Камеры Марий Эл и отдельная база Йошкар-Олы; офлайн-карта и GPS-предупреждения.",
+  "version": "0.5.0",
   "vendor": "Andrug05",
   "loggingId": "SCAM",
   "iconGlyph": "camera",
@@ -45,6 +45,10 @@
         [
           "yoshkar-ola",
           "Йошкар-Ола"
+        ],
+        [
+          "mari-el",
+          "Республика Марий Эл"
         ],
         [
           "moscow",
