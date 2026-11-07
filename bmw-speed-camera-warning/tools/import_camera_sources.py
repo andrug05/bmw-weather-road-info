@@ -186,7 +186,7 @@ def main():
     third_party=helpradar_candidates()
     known_names={re.sub(r'[^а-яa-z0-9]+',' ',c['name'].lower()).strip() for c in city_cameras}
     city_cameras += [c for c in third_party if re.sub(r'[^а-яa-z0-9]+',' ',c['name'].lower()).strip() not in known_names]
-    db={"schemaVersion":1,"revision":3,"updatedAt":datetime.now(timezone.utc).isoformat(),
+    db={"schemaVersion":1,"revision":next_revision,"updatedAt":datetime.now(timezone.utc).isoformat(),
         "attribution":"© OpenStreetMap contributors; ODbL 1.0. SpeedCams.world data is derived from OpenStreetMap.",
         "cities":{"mari-el":region_cameras,"yoshkar-ola":city_cameras,"moscow":[],"sochi":[]},
         "sourceCounts":{"mari-el":{"speedcams":len(speed_region),"osm":len(live_region)},
