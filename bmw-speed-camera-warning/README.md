@@ -1,4 +1,4 @@
-# BMW Speed Camera Warning 0.5.0
+# BMW Speed Camera Warning 0.5.1
 
 Standalone BMW MGU ID7 app. Independent of Weather; Weather 0.2.7 is not used.
 
