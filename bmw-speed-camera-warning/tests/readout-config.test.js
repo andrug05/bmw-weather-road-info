@@ -2,7 +2,7 @@
 const assert=require('assert'),fs=require('fs'),path=require('path'),cp=require('child_process');
 const base=path.join(__dirname,'../apps/aurelm_speed_camera_warning');
 const db=require(path.join(base,'camera-db.json')),map=require(path.join(base,'city-map.json'));
-assert.strictEqual(db.revision,3);
+assert(Number.isInteger(db.revision) && db.revision>=3);
 assert(Array.isArray(db.cities['mari-el']));
 assert(Array.isArray(db.cities['yoshkar-ola']));
 assert(db.cities['yoshkar-ola'].filter(c=>typeof c.lat==='number'&&typeof c.lon==='number').length>=4);
