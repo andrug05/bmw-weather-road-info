@@ -35,7 +35,8 @@ mgu.run({
             return database.cities && Array.isArray(database.cities[city]) ? database.cities[city] : [];
         }
         function mappedCount() {
-            return list().filter((camera) => typeof camera.lat === 'number' && isFinite(camera.lat) &&\n                typeof camera.lon === 'number' && isFinite(camera.lon)).length;
+            return list().filter((camera) => typeof camera.lat === 'number' && isFinite(camera.lat) &&
+                typeof camera.lon === 'number' && isFinite(camera.lon)).length;
         }
         function show(id, value) {
             Promise.resolve(ui.text(id, String(value))).catch((error) => {
