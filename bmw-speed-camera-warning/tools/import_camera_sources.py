@@ -133,11 +133,11 @@ def main():
     # but cannot generate proximity alerts.
     try:
         old=json.load(open(DATA,encoding="utf-8"))
-        manual=[c for c in old.get("cities",{}).get("yoshkar-ola",[]) if c.get("source")=="local-curated" or c.get("lat") is None]
+        manual=[c for c in old.get("cities",{}).get("yoshkar-ola",[]) if c.get("id","").startswith("yola-") or c.get("source")=="local-curated" or c.get("lat") is None]
     except Exception:
         manual=[]
     for c in manual:
-        c.setdefault("source","local-curated"); c.setdefault("sourceLabel","Подборка Йошкар-Олы")
+        c["source"]="local-curated"; c.setdefault("sourceLabel","Подборка Йошкар-Олы")
         c.setdefault("sourceUrl","https://www.driver-helper.ru/kamery-gibdd/joshkar_ola")
     region_cameras=dedupe(speed_region+live_region)
     city_cameras=dedupe(speed_city+live_city+manual)
