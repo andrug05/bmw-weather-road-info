@@ -180,20 +180,28 @@ def main():
         if inside_polygon(c["lon"],c["lat"],region):
             speed_region.append(c)
             if inside_polygon(c["lon"],c["lat"],city): speed_city.append(c)
-    live_region=osm_nodes(region)
+    try:
+        live_region=osm_nodes(region)
+    except Exception as exc:
+        print("WARNING: live Overpass import unavailable; SpeedCams.world OSM snapshot remains active:",exc,file=sys.stderr)
+        live_region=[]
     live_city=[c for c in live_region if inside_polygon(c["lon"],c["lat"],city)]
     # Preserve the manually curated local entries; null-coordinate entries remain visible
     # but cannot generate proximity alerts.
     try:
         old=json.load(open(DATA,encoding="utf-8"))
+        next_revision=max(3,int(old.get("revision",2))+1)
         manual=[c for c in old.get("cities",{}).get("yoshkar-ola",[]) if c.get("id","").startswith("yola-") or c.get("source")=="local-curated" or c.get("lat") is None]
     except Exception:
+        next_revision=3
         manual=[]
     for c in manual:
         c["source"]="local-curated"; c.setdefault("sourceLabel","Подборка Йошкар-Олы")
         c.setdefault("sourceUrl","https://www.driver-helper.ru/kamery-gibdd/joshkar_ola")
     region_cameras=dedupe(speed_region+live_region)
-    city_cameras=dedupe(speed_city+live_city+manual)
+    manual_geo=[c for c in manual if isinstance(c.get("lat"),(int,float)) and isinstance(c.get("lon"),(int,float))]
+    manual_unlocated=[c for c in manual if c not in manual_geo]
+    city_cameras=dedupe(speed_city+live_city+manual_geo)+manual_unlocated
     try:
         third_party=helpradar_candidates()
     except Exception as exc:
