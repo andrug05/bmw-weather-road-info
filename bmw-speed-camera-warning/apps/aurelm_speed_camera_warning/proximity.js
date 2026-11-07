@@ -26,7 +26,7 @@ class ProximityWarnings {
             const firstM = fix.speedKmh > FAST_SPEED_KMH ? FAST_WARNING_M : FIRST_WARNING_M;
             let state = this.states[camera.id];
             if (!state) state = this.states[camera.id] = { stage: 0, resetAt: firstM + RESET_MARGIN_M };
-            if (state.stage >= 2 && d > state.resetAt) {
+            if (state.stage > 0 && d > state.resetAt) {
                 state.stage = 0;
                 state.resetAt = firstM + RESET_MARGIN_M;
             } else if (state.stage === 0) state.resetAt = firstM + RESET_MARGIN_M;
