@@ -73,7 +73,12 @@ assert.ok(events[0].distanceM <= 500);
 events = slow.update({ lat: 0, lon: 0.0027, speedKmh: 60, accuracyM: 5 }, [camera]);
 assert.strictEqual(events.length, 1);
 assert.strictEqual(events[0].stage, 2);
-assert.strictEqual(slow.update({ lat: 0, lon: 0.0026, speedKmh: 60, accuracyM: 5 }, [camera]).length, 0);\nevents = slow.update({ lat: 0, lon: 0.01, speedKmh: 60, accuracyM: 5 }, [camera]);\nassert.strictEqual(events.length, 0, 'moving away should only rearm');\nevents = slow.update({ lat: 0, lon: 0.00449, speedKmh: 60, accuracyM: 5 }, [camera]);\nassert.strictEqual(events.length, 1, 'a new approach should trigger again');\nassert.strictEqual(events[0].stage, 1);
+assert.strictEqual(slow.update({ lat: 0, lon: 0.0026, speedKmh: 60, accuracyM: 5 }, [camera]).length, 0);
+events = slow.update({ lat: 0, lon: 0.01, speedKmh: 60, accuracyM: 5 }, [camera]);
+assert.strictEqual(events.length, 0, 'moving away should only rearm');
+events = slow.update({ lat: 0, lon: 0.00449, speedKmh: 60, accuracyM: 5 }, [camera]);
+assert.strictEqual(events.length, 1, 'a new approach should trigger again');
+assert.strictEqual(events[0].stage, 1);
 
 const fast = new ProximityWarnings();
 const fastCamera = { id: 'fast-camera', lat: 0, lon: 0.006, name: 'fast' };
