@@ -1,163 +1,58 @@
 'use strict';
-
-/*
- * Standalone BMW MGU ID7 speed-camera app.
- * Camera records are cached under the app data directory and refreshed from
- * the versioned public JSON feed when HTTPS connectivity is available.
- * GPS is read-only BMW SatellitePositioning. Voice/audio is intentionally off.
- */
-const mgu = require('./kit/mgu');
-const bundledDatabase = require('./camera-db.json');
-const { CameraStore } = require('./camera-store');
-const { BmwGps } = require('./gps');
-const { ProximityWarnings } = require('./proximity');
-
-const CITY_LABELS = {
-    'yoshkar-ola': 'Йошкар-Ола',
-    'moscow': 'Москва',
-    'sochi': 'Сочи'
-};
-const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
-
-mgu.run({
-    async start(ctx) {
-        const { ui, settings, log, dataDir } = ctx;
-        let city = String(settings.get('city') || 'yoshkar-ola');
-        let index = 0;
-        const store = new CameraStore({ dataDir, bundled: bundledDatabase });
-        let database = store.loadLocal().database;
-        const gps = new BmwGps();
-        const proximity = new ProximityWarnings();
-        let refreshInFlight = null;
-        let lastAlert = 'Предупреждение: нет';
-
-        function list() {
-            return database.cities && Array.isArray(database.cities[city]) ? database.cities[city] : [];
-        }
-        function mappedCount() {
-            return list().filter((camera) => typeof camera.lat === 'number' && isFinite(camera.lat) &&
-                typeof camera.lon === 'number' && isFinite(camera.lon)).length;
-        }
-        function show(id, value) {
-            Promise.resolve(ui.text(id, String(value))).catch((error) => {
-                log.warn('UI update ' + id + ': ' + error);
-            });
-        }
-        function gpsStatus() {
-            const snap = gps.snapshot();
-            if (snap.fix) {
-                const fix = snap.fix;
-                show('GPS_STATUS', 'GPS BMW: координаты получены');
-                show('GPS_POSITION', 'Координаты: ' + fix.lat.toFixed(6) + ', ' + fix.lon.toFixed(6) +
-                    (fix.speedKmh === null ? '' : ' · ' + Math.round(fix.speedKmh) + ' км/ч'));
-                show('GPS_ACCURACY', fix.accuracyM !== null ?
-                    'Точность: около ' + fix.accuracyM.toFixed(1) + ' м' :
-                    'Точность GST не получена — оповещения заблокированы');
-                return;
-            }
-            const labels = {
-                connecting: 'GPS BMW: подключение к SatellitePositioning…',
-                subscribed: 'GPS BMW: подписка активна, ожидание спутникового фикса',
-                unavailable: 'GPS BMW: интерфейс недоступен (' + (snap.errorCode || 'unknown') + ')',
-                stale: 'GPS BMW: координаты устарели',
-                stopped: 'GPS BMW: остановлен'
-            };
-            show('GPS_STATUS', labels[snap.state] || 'GPS BMW: ' + snap.state);
-            show('GPS_POSITION', 'Координаты: нет актуального фикса');
-            show('GPS_ACCURACY', 'Точность: не подтверждена');
-        }
-        function render(message) {
-            const cameras = list();
-            if (index >= cameras.length) index = 0;
-            if (index < 0) index = Math.max(0, cameras.length - 1);
-            show('CITY', 'Город: ' + (CITY_LABELS[city] || city));
-            show('COUNT', 'Камер в базе: ' + cameras.length + ' · с координатами: ' + mappedCount());
-            gpsStatus();
-            show('ALERT', lastAlert);
-            if (!cameras.length) {
-                show('CAMERA', 'Для этого города записей пока нет');
-                show('LIMIT', 'Ограничение: —');
-                show('INFO', message || 'Локальная база загружена');
-                return;
-            }
-            const camera = cameras[index];
-            show('CAMERA', (index + 1) + '/' + cameras.length + ' · ' + camera.name);
-            show('LIMIT', 'Ограничение: ' + (camera.limit ? camera.limit + ' км/ч' : 'не указано'));
-            const dbStatus = 'База rev.' + database.revision + ' (' + store.source + ')';
-            show('INFO', (message ? message + ' · ' : '') + dbStatus + ' · ' +
-                (mappedCount() ? 'GPS-оповещения включены' : 'нет координат камер — оповещения пока невозможны'));
-        }
-        function processFix(snap) {
-            gpsStatus();
-            if (!snap || !snap.fix) return;
-            const events = proximity.update(snap.fix, list());
-            events.forEach((event) => {
-                const label = event.stage === 1 ? 'Первая точка' : 'Повторное предупреждение';
-                const text = label + ': камера через ' + event.distanceM + ' м — ' + event.camera.name;
-                lastAlert = text;
-                show('ALERT', text);
-                log.warn('PROXIMITY_WARNING stage=' + event.stage +
-                    ' distance=' + event.distanceM + ' speed=' + event.speedKmh +
-                    ' camera=' + event.camera.id);
-            });
-        }
-        async function refreshDatabase(reason) {
-            if (refreshInFlight) return refreshInFlight;
-            refreshInFlight = store.refresh().then((result) => {
-                database = result.database;
-                if (result.updated) {
-                    index = 0;
-                    proximity.reset();
-                    log.info('Camera database updated to revision ' + database.revision);
-                    render('База камер обновлена');
-                } else if (result.error) {
-                    log.info('Camera database update unavailable: ' + result.error);
-                    if (reason === 'manual' || reason === 'startup') render('Нет сети; используется сохранённая база');
-                } else if (reason === 'manual' || reason === 'startup') {
-                    render('База актуальна; проверка выполнена');
-                }
-                return result;
-            }).catch((error) => {
-                log.warn('Camera database refresh failed: ' + error);
-                if (reason === 'manual') render('Ошибка обновления; используется локальная база');
-                return { updated: false, error: String(error), database };
-            }).then((result) => {
-                refreshInFlight = null;
-                return result;
-            });
-            return refreshInFlight;
-        }
-
-        gps.on('change', (snap) => processFix(snap));
-        gps.start();
-
-        ui.onClick('BTN_PREV', () => {
-            index--;
-            render('Предыдущая камера');
-        });
-        ui.onClick('BTN_NEXT', () => {
-            index++;
-            render('Следующая камера');
-        });
-        ui.onClick('BTN_REFRESH', () => {
-            refreshDatabase('manual');
-        });
-        settings.onChange((key) => {
-            if (key !== 'city') return;
-            city = String(settings.get('city') || 'yoshkar-ola');
-            index = 0;
-            proximity.reset();
-            render('Город изменён');
-        });
-        ui.onVisible((name, visible) => {
-            if (name === 'MAIN' && visible) render('Локальная база готова');
-        });
-
-        render('Локальная база загружена; проверка обновлений…');
-        // The bundled/cache copy is immediately usable; network refresh never blocks startup.
-        refreshDatabase('startup');
-        setInterval(() => refreshDatabase('scheduled'), REFRESH_INTERVAL_MS);
-        log.info('Speed Camera Warning 0.3.0 started; database source=' + store.source +
-            '; GPS proximity alerts enabled for geocoded cameras; voice disabled');
-    }
-});
+const mgu=require('./kit/mgu');
+const bundledDatabase=require('./camera-db.json');
+const cityMap=require('./city-map.json');
+const {CameraStore}=require('./camera-store');
+const {BmwGps}=require('./gps');
+const {ProximityWarnings}=require('./proximity');
+const CITY_LABELS={'yoshkar-ola':'Йошкар-Ола',moscow:'Москва',sochi:'Сочи'};
+const REFRESH_INTERVAL_MS=21600000,W=1600,H=520;
+const MAP={x:24,y:66,w:1120,h:420},P={x:1170,y:66,w:406,h:420};
+const C={bg:'#080d13',panel:'#101923',road:'#334252',edge:'#637487',text:'#e9f0f6',muted:'#91a2b5',blue:'#58b6ff',red:'#ff525e',green:'#5de0a1',yellow:'#ffd166',grid:'#172430'};
+mgu.run({async start(ctx){
+ const {ui,settings,log,dataDir}=ctx;let city=String(settings.get('city')||'yoshkar-ola'),index=0,zoom=1,fix=null,lastAlert='Нет предупреждений';
+ const store=new CameraStore({dataDir,bundled:bundledDatabase});let database=store.loadLocal().database;
+ const gps=new BmwGps(),proximity=new ProximityWarnings();let refreshInFlight=null;
+ const cameras=()=>database.cities&&Array.isArray(database.cities[city])?database.cities[city]:[];
+ const mapped=()=>cameras().filter(c=>c&&typeof c.lat==='number'&&typeof c.lon==='number');
+ const selected=()=>cameras()[Math.max(0,Math.min(index,cameras().length-1))]||null;
+ const txt=(cv,s,x,y,z,col,o)=>cv.text(String(s),x,y,z,col,Object.assign({font:'label',literal:true},o||{}));
+ const ln=(cv,a,b,w,c)=>cv.line(a[0],a[1],b[0],b[1],w,c);
+ function xy(lat,lon,center,scale){return [MAP.x+MAP.w/2+(lon-center.lon)*111320*Math.cos(center.lat*Math.PI/180)*scale,MAP.y+MAP.h/2+(center.lat-lat)*111320*scale];}
+ function pin(cv,x,y,sel){cv.circle(x,y,sel?13:10,'#071019');cv.circle(x,y,sel?9:7,C.red);cv.circle(x,y,2.8,'#fff');}
+ function drawMap(cv){
+  cv.roundRect(MAP.x,MAP.y,MAP.w,MAP.h,14,'#0b151e');
+  const center=fix?{lat:fix.lat,lon:fix.lon}:{lat:56.637,lon:47.902},scale=.145*zoom;
+  for(let x=MAP.x+40;x<MAP.x+MAP.w;x+=80)ln(cv,[x,MAP.y+8],[x,MAP.y+MAP.h-8],1,C.grid);
+  for(let y=MAP.y+30;y<MAP.y+MAP.h;y+=60)ln(cv,[MAP.x+8,y],[MAP.x+MAP.w-8,y],1,C.grid);
+  (city==='yoshkar-ola'?cityMap.roads:[]).forEach(r=>{
+   const a=xy(r[1],r[2],center,scale),b=xy(r[3],r[4],center,scale);
+   if(Math.max(a[0],b[0])<MAP.x||Math.min(a[0],b[0])>MAP.x+MAP.w||Math.max(a[1],b[1])<MAP.y||Math.min(a[1],b[1])>MAP.y+MAP.h)return;
+   ln(cv,a,b,9,C.edge);ln(cv,a,b,5,C.road);
+  });
+  mapped().forEach(c=>{const p=xy(c.lat,c.lon,center,scale);if(p[0]>=MAP.x-20&&p[0]<=MAP.x+MAP.w+20&&p[1]>=MAP.y-20&&p[1]<=MAP.y+MAP.h+20)pin(cv,p[0],p[1],c.id===(selected()||{}).id);});
+  if(fix){const p=xy(fix.lat,fix.lon,center,scale);cv.circle(p[0],p[1],17,'#173b5a');cv.circle(p[0],p[1],9,C.blue);const h=(fix.headingDeg||0)*Math.PI/180;cv.line(p[0],p[1],p[0]+Math.sin(h)*25,p[1]-Math.cos(h)*25,4,'#fff');}
+  cv.strokeRoundRect(MAP.x,MAP.y,MAP.w,MAP.h,14,1,'#314252');
+  txt(cv,'МАСШТАБ '+zoom.toFixed(1)+'×',MAP.x+18,MAP.y+25,15,C.muted);
+  txt(cv,'Координат камер: '+mapped().length+'/'+cameras().length,MAP.x+MAP.w-18,MAP.y+25,15,C.text,{align:'right'});
+ }
+ function drawPanel(cv){
+  cv.roundRect(P.x,P.y,P.w,P.h,14,C.panel);const c=selected();
+  txt(cv,'BMW SPEED CAMERA WARNING',P.x+22,P.y+30,16,C.blue);txt(cv,CITY_LABELS[city]||city,P.x+22,P.y+62,24,C.text);
+  txt(cv,'GPS: '+(fix?'актуальный фикс':'ожидание координат'),P.x+22,P.y+95,16,fix?C.green:C.yellow);
+  if(fix){txt(cv,fix.lat.toFixed(6)+'  '+fix.lon.toFixed(6),P.x+22,P.y+120,15,C.muted);txt(cv,'Точность '+(fix.accuracyM===null?'нет GST':fix.accuracyM.toFixed(1)+' м')+' · '+(fix.speedKmh===null?'—':Math.round(fix.speedKmh)+' км/ч'),P.x+22,P.y+143,14,C.muted);}
+  ln(cv,[P.x+20,P.y+160],[P.x+P.w-20,P.y+160],1,'#2a3948');txt(cv,'ВЫБРАННАЯ КАМЕРА',P.x+22,P.y+188,13,C.muted);
+  if(c){txt(cv,(index+1)+' / '+cameras().length,P.x+22,P.y+216,15,C.blue);txt(cv,c.name,P.x+22,P.y+246,17,C.text);txt(cv,'Лимит: '+(c.limit?c.limit+' км/ч':'не указан'),P.x+22,P.y+272,15,C.muted);txt(cv,typeof c.lat==='number'?'Координаты из базы Driver Helper':'Координата установки не подтверждена',P.x+22,P.y+296,13,typeof c.lat==='number'?C.green:C.yellow);}
+  ln(cv,[P.x+20,P.y+316],[P.x+P.w-20,P.y+316],1,'#2a3948');txt(cv,'ПОСЛЕДНЕЕ ПРЕДУПРЕЖДЕНИЕ',P.x+22,P.y+342,13,C.muted);txt(cv,lastAlert,P.x+22,P.y+370,14,C.yellow);txt(cv,'База rev.'+database.revision+' · '+store.source,P.x+22,P.y+397,13,C.muted);
+ }
+ function render(){const cv=ctx.canvas(W,H).clear(C.bg);cv.roundRect(18,12,W-36,40,10,'#111c27');txt(cv,'КАРТА КАМЕР · '+(CITY_LABELS[city]||city),36,39,19,C.text);txt(cv,'Локальная схема · без интернета',W-38,39,15,C.muted,{align:'right'});drawMap(cv);drawPanel(cv);txt(cv,'Схема улиц по опубликованным координатам участков контроля; не навигационная карта.',MAP.x+2,H-8,12,C.muted);return ui.image('MAIN_GFX',cv);}
+ function renderSafe(){Promise.resolve().then(render).catch(e=>log.warn('map render: '+e));}
+ function gpsChanged(s){fix=s&&s.fix?s.fix:null;if(fix)proximity.update(fix,cameras()).forEach(e=>{lastAlert=(e.stage===1?'Предупреждение':'Повтор')+': '+e.distanceM+' м · '+e.camera.name;log.warn('PROXIMITY_WARNING stage='+e.stage+' distance='+e.distanceM+' camera='+e.camera.id);});renderSafe();}
+ async function refresh(){if(refreshInFlight)return refreshInFlight;refreshInFlight=store.refresh().then(r=>{database=r.database;if(r.updated){index=0;proximity.reset();}renderSafe();return r;}).catch(e=>{log.warn('DB refresh '+e);renderSafe();return {error:String(e)};}).then(r=>{refreshInFlight=null;return r;});return refreshInFlight;}
+ ui.onClick('BTN_PREV',()=>{index=Math.max(0,index-1);renderSafe();});ui.onClick('BTN_NEXT',()=>{index=Math.min(cameras().length-1,index+1);renderSafe();});
+ ui.onClick('BTN_ZOOM_IN',()=>{zoom=Math.min(2.5,zoom*1.25);renderSafe();});ui.onClick('BTN_ZOOM_OUT',()=>{zoom=Math.max(.55,zoom/1.25);renderSafe();});ui.onClick('BTN_REFRESH',refresh);
+ settings.onChange(k=>{if(k==='city'){city=String(settings.get('city')||'yoshkar-ola');index=0;proximity.reset();renderSafe();}});
+ gps.on('change',gpsChanged);gps.start();ui.onVisible((n,v)=>{if(n==='MAIN'&&v)renderSafe();});
+ renderSafe();refresh();setInterval(refresh,REFRESH_INTERVAL_MS);ctx.loop('MAIN',1000,render);
+ log.info('Speed Camera Warning 0.4.0 started; offline vector map; voice disabled');
+}});
