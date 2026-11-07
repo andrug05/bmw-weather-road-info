@@ -2,15 +2,15 @@
 
 **Основной и единственный активный проект этого репозитория** — приложение предупреждения о камерах контроля скорости для BMW MGU ID7.
 
-Weather & Road Info больше не является частью проекта. Репозиторий используется для разработки, сборки и публикации BMW Speed Camera Warning.
+Weather & Road Info больше не входит в исходный код проекта. Репозиторий используется для разработки, сборки и публикации BMW Speed Camera Warning.
 
 ## Последняя версия
 
 **0.5.1**
 
-- [Скачать установочный пакет MGU](https://github.com/andrug05/bmw-weather-road-info/releases/download/aurelm_speed_camera_warning%400.5.1/aurelm_aurelm_speed_camera_warning%400.5.1.mgu)
-- [Скачать архив приложения TGZ](https://github.com/andrug05/bmw-weather-road-info/releases/download/aurelm_speed_camera_warning%400.5.1/aurelm_aurelm_speed_camera_warning%400.5.1.tgz)
-- [Все релизы](https://github.com/andrug05/bmw-weather-road-info/releases)
+- [Скачать установочный пакет MGU](https://github.com/andrug05/bmwcaminfo/releases/download/aurelm_speed_camera_warning%400.5.1/aurelm_speed_camera_warning%400.5.1.mgu)
+- [Скачать архив приложения TGZ](https://github.com/andrug05/bmwcaminfo/releases/download/aurelm_speed_camera_warning%400.5.1/aurelm_speed_camera_warning%400.5.1.tgz)
+- [Все релизы](https://github.com/andrug05/bmwcaminfo/releases)
 
 ## Возможности
 
@@ -42,4 +42,3 @@ Weather & Road Info больше не является частью проект
 GitHub Actions → **Build BMW Speed Camera Warning**.
 
 Запуск сборки вручную: Actions → Build BMW Speed Camera Warning → Run workflow. По умолчанию используется версия 0.5.1.
-
