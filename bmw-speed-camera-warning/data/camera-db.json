@@ -1,44 +1,62 @@
 {
   "schemaVersion": 1,
-  "revision": 2,
+  "revision": 3,
   "updatedAt": "2026-11-07T00:00:00Z",
+  "attribution": "© OpenStreetMap contributors; ODbL 1.0. SpeedCams.world data is derived from OpenStreetMap.",
   "cities": {
+    "mari-el": [],
     "yoshkar-ola": [
       {
         "id": "yola-tsargradsky-01",
         "name": "Царьградский проспект",
-        "type": "Стационарный радар (Driver Helper)",
+        "type": "Стационарный радар",
         "limit": 60,
         "lat": 56.638036,
         "lon": 47.908825,
-        "note": "Координаты опубликованы Driver Helper; новый комплекс на перекрёстке Царьградский/Воскресенский отдельно не привязан."
+        "source": "local-curated",
+        "sourceLabel": "Подборка Йошкар-Олы",
+        "sourceUrl": "https://www.driver-helper.ru/kamery-gibdd/joshkar_ola",
+        "osmId": null,
+        "note": "Опубликованные координаты Driver Helper."
       },
       {
         "id": "yola-mira-01",
         "name": "Улица Мира",
-        "type": "Стационарный радар (Driver Helper)",
+        "type": "Стационарный радар",
         "limit": null,
         "lat": 56.633352,
         "lon": 47.945252,
-        "note": "Координаты опубликованы Driver Helper; точный адрес/направление не уточнены."
+        "source": "local-curated",
+        "sourceLabel": "Подборка Йошкар-Олы",
+        "sourceUrl": "https://www.driver-helper.ru/kamery-gibdd/joshkar_ola",
+        "osmId": null,
+        "note": "Опубликованные координаты Driver Helper."
       },
       {
         "id": "yola-karl-marx-01",
         "name": "Улица Карла Маркса",
-        "type": "Стационарный радар (Driver Helper)",
+        "type": "Стационарный радар",
         "limit": null,
         "lat": 56.620741,
         "lon": 47.886987,
-        "note": "Координаты опубликованы Driver Helper; точный адрес/направление не уточнены."
+        "source": "local-curated",
+        "sourceLabel": "Подборка Йошкар-Олы",
+        "sourceUrl": "https://www.driver-helper.ru/kamery-gibdd/joshkar_ola",
+        "osmId": null,
+        "note": "Опубликованные координаты Driver Helper."
       },
       {
         "id": "yola-zvezdnaya-01",
         "name": "Звёздная улица",
-        "type": "Стационарный радар (Driver Helper)",
+        "type": "Стационарный радар",
         "limit": null,
         "lat": 56.615322,
         "lon": 47.97009,
-        "note": "Координаты опубликованы Driver Helper; точный адрес/направление не уточнены."
+        "source": "local-curated",
+        "sourceLabel": "Подборка Йошкар-Олы",
+        "sourceUrl": "https://www.driver-helper.ru/kamery-gibdd/joshkar_ola",
+        "osmId": null,
+        "note": "Опубликованные координаты Driver Helper."
       },
       {
         "id": "yola-new-tsargrad-voskresensky",
@@ -47,7 +65,11 @@
         "limit": 40,
         "lat": null,
         "lon": null,
-        "note": "Установка подтверждена Марийской правдой и МК; координата самого комплекса не подтверждена."
+        "source": "local-curated",
+        "sourceLabel": "Подборка Йошкар-Олы",
+        "sourceUrl": "https://www.marpravda.ru/news/auto/v-yoshkar-ole-na-perekrestkakh-za-voditelyami-sledyat-2-novye-skorostnye-kamery/",
+        "osmId": null,
+        "note": "Установка подтверждена местной прессой; координаты устройства не подтверждены."
       },
       {
         "id": "yola-new-lenin-pervomayskaya",
@@ -56,10 +78,25 @@
         "limit": 40,
         "lat": null,
         "lon": null,
-        "note": "Установка подтверждена Марийской правдой и МК; координата самого комплекса не подтверждена."
+        "source": "local-curated",
+        "sourceLabel": "Подборка Йошкар-Олы",
+        "sourceUrl": "https://www.marpravda.ru/news/auto/v-yoshkar-ole-na-perekrestkakh-za-voditelyami-sledyat-2-novye-skorostnye-kamery/",
+        "osmId": null,
+        "note": "Установка подтверждена местной прессой; координаты устройства не подтверждены."
       }
     ],
     "moscow": [],
     "sochi": []
+  },
+  "sourceCounts": {
+    "mari-el": {
+      "speedcams": 0,
+      "osm": 0
+    },
+    "yoshkar-ola": {
+      "speedcams": 0,
+      "osm": 0,
+      "local": 6
+    }
   }
 }
