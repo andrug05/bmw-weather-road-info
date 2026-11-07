@@ -2,7 +2,8 @@
 """Build a compact Mari El camera database from SpeedCams.world and live OSM.
 Address-only third-party listings are deliberately not geocoded into warning points.
 """
-import csv, io, json, math, os, sys, time, urllib.parse, urllib.request
+import csv, io, json, math, os, sys, time, re, zlib, urllib.parse, urllib.request
+from html.parser import HTMLParser
 from datetime import datetime, timezone
 
 CSV_URL = "https://speedcams.world/downloads/ru/ru-all.csv"
@@ -114,6 +115,47 @@ def dedupe(items):
         if not duplicate: result.append(c)
     return result
 
+
+class HelpRadarParser(HTMLParser):
+    def __init__(self):
+        super().__init__(); self.in_row=False; self.in_cell=False; self.cell=""; self.row=[]; self.rows=[]
+    def handle_starttag(self, tag, attrs):
+        if tag == "tr": self.in_row=True; self.row=[]
+        elif tag in ("td","th") and self.in_row: self.in_cell=True; self.cell=""
+    def handle_data(self, data):
+        if self.in_cell: self.cell += data
+    def handle_endtag(self, tag):
+        if tag in ("td","th") and self.in_cell:
+            self.row.append(" ".join(self.cell.split())); self.in_cell=False
+        elif tag == "tr" and self.in_row:
+            if self.row: self.rows.append(self.row)
+            self.in_row=False
+
+def helpradar_candidates():
+    url = "https://helpradar.ru/kamery-gibdd/ioshkar-ola"
+    parser = HelpRadarParser()
+    parser.feed(fetch(url, timeout=45).decode("utf-8", "replace"))
+    result=[]; seen=set()
+    for row in parser.rows:
+        if not row: continue
+        address=row[0].strip()
+        if not address or address.lower() in ("адрес","-","—"): continue
+        if len(row)>1 and row[1].strip().lower() in ("ограничение скорости","скорость"): continue
+        key=re.sub(r"[^а-яa-z0-9]+"," ",address.lower()).strip()
+        if not key or key in seen: continue
+        seen.add(key)
+        limit=None
+        if len(row)>1:
+            m=re.search(r"\b(\d{2,3})\b",row[1])
+            if m:
+                n=int(m.group(1)); limit=n if 5<=n<=250 else None
+        ident="hr-"+format(zlib.crc32(key.encode("utf-8")) & 0xffffffff,"08x")
+        result.append({"id":ident,"name":address[:160],"type":"Камера / адрес из стороннего списка",
+            "limit":limit,"lat":None,"lon":None,"source":"HelpRadar-SpeedCamOnline",
+            "sourceLabel":"HelpRadar / SpeedCamOnline","sourceUrl":url,"osmId":None,
+            "note":"Адрес из стороннего списка; точные координаты устройства не подтверждены. Не участвует в GPS-предупреждениях."})
+    return result
+
 def main():
     region=nominatim_polygon("Республика Марий Эл, Россия")
     city=nominatim_polygon("Йошкар-Ола, Республика Марий Эл, Россия")
@@ -141,16 +183,19 @@ def main():
         c.setdefault("sourceUrl","https://www.driver-helper.ru/kamery-gibdd/joshkar_ola")
     region_cameras=dedupe(speed_region+live_region)
     city_cameras=dedupe(speed_city+live_city+manual)
+    third_party=helpradar_candidates()
+    known_names={re.sub(r'[^а-яa-z0-9]+',' ',c['name'].lower()).strip() for c in city_cameras}
+    city_cameras += [c for c in third_party if re.sub(r'[^а-яa-z0-9]+',' ',c['name'].lower()).strip() not in known_names]
     db={"schemaVersion":1,"revision":3,"updatedAt":datetime.now(timezone.utc).isoformat(),
         "attribution":"© OpenStreetMap contributors; ODbL 1.0. SpeedCams.world data is derived from OpenStreetMap.",
         "cities":{"mari-el":region_cameras,"yoshkar-ola":city_cameras,"moscow":[],"sochi":[]},
         "sourceCounts":{"mari-el":{"speedcams":len(speed_region),"osm":len(live_region)},
-                        "yoshkar-ola":{"speedcams":len(speed_city),"osm":len(live_city),"local":len(manual)}}}
+                        "yoshkar-ola":{"speedcams":len(speed_city),"osm":len(live_city),"local":len(manual),"helpradar":len(third_party)}}}
     for path in (DATA,APP):
         os.makedirs(os.path.dirname(path),exist_ok=True)
         with open(path,"w",encoding="utf-8") as f: json.dump(db,f,ensure_ascii=False,indent=2)
     print("Mari El cameras:",len(region_cameras),"SpeedCams:",len(speed_region),"OSM:",len(live_region))
-    print("Yoshkar-Ola cameras:",len(city_cameras),"SpeedCams:",len(speed_city),"OSM:",len(live_city),"local:",len(manual))
+    print("Yoshkar-Ola cameras:",len(city_cameras),"SpeedCams:",len(speed_city),"OSM:",len(live_city),"local:",len(manual),"HelpRadar:",len(third_party))
     if not region_cameras or not city_cameras:
         raise RuntimeError("Source import returned an empty regional or city dataset")
 
