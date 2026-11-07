@@ -1,87 +1,110 @@
 'use strict';
-// HTTPS via mgu-uplink per-UID routing. Try every IPv4 address returned by its DNS.
-const https = require('https');
+// HTTPS requests are delegated to the root-owned aurelm-weather-net service.
+// The service runs outbound HTTPS under the mgu-uplink fetch UID.
+const net = require('net');
 const url = require('url');
-const uplink = require('./uplink');
-let network = uplink.create(process.cwd());
-function configure(dataDir) { network = uplink.create(dataDir || process.cwd()); }
+
+const SOCKET = '/run/aurelm-weather-net/ctl.sock';
+let sequence = 0;
+
+function configure() {}
 
 function getJson(href, options) {
   options = options || {};
   return new Promise((resolve, reject) => {
     const parsed = url.parse(href);
-    if (parsed.protocol !== 'https:' || !parsed.hostname) return reject(new Error('Network: only HTTPS URLs are supported'));
-    const host = parsed.hostname;
-    const timeoutMs = Math.max(5000, Number(options.timeout) || 20000);
-    const status = network.status();
-    if (!status.available) return reject(new Error('mgu-uplink lease/DNS unavailable; host=' + host + '; checked=' + (status.path || '/run/mgu-uplink/lease.json')));
+    if (parsed.protocol !== 'https:' || !parsed.hostname) {
+      reject(new Error('Network: only HTTPS URLs are supported'));
+      return;
+    }
 
-    network.resolve(host).then(addresses => {
-      let index = 0, lastError = null;
-      function attempt() {
-        if (index >= addresses.length) {
-          const detail = lastError ? (lastError.code ? lastError.code + ': ' : '') + lastError.message : 'unknown error';
-          return reject(new Error('Network TCP connect failed; host=' + host + '; tried=' + addresses.join(',') + '; ' + detail));
-        }
-        const ip = addresses[index++];
-        let settled = false, phase = 'TCP connect', timer = null, req = null;
-        const fail = err => {
-          if (settled) return;
-          settled = true;
-          if (timer) clearTimeout(timer);
-          lastError = err instanceof Error ? err : new Error(String(err));
-          if (phase === 'TCP connect' && index < addresses.length) return attempt();
-          reject(new Error('Network ' + phase + ' failed; host=' + host + '; ip=' + ip + '; ' +
-            (lastError.code ? lastError.code + ': ' : '') + lastError.message));
-        };
-        try {
-          req = https.request({
-            hostname: ip, port: parsed.port || 443, path: parsed.path || '/', method: 'GET',
-            family: 4, servername: host,
-            headers: { 'Host': host, 'User-Agent': 'BMW-Weather-Road-Info/0.2.4', 'Accept': 'application/json' }
-          }, res => {
-            phase = 'HTTP response';
-            let body = '';
-            if (res.setEncoding) res.setEncoding('utf8');
-            res.on('data', chunk => {
-              if (settled) return;
-              body += chunk;
-              if (body.length > 3 * 1024 * 1024) {
-                const e = new Error('Response exceeds 3 MB');
-                try { req.destroy(e); } catch (_) {}
-                fail(e);
-              }
-            });
-            res.on('end', () => {
-              if (settled) return;
-              if (timer) clearTimeout(timer);
-              if (res.statusCode < 200 || res.statusCode >= 300) return fail(new Error('HTTP status ' + res.statusCode));
-              try { settled = true; resolve(JSON.parse(body)); }
-              catch (e) { fail(new Error('Invalid JSON: ' + e.message)); }
-            });
-            res.on('error', fail);
-          });
-          req.on('socket', socket => {
-            socket.on('connect', () => { phase = 'TLS handshake'; });
-            socket.on('secureConnect', () => { phase = 'HTTP response'; });
-          });
-          req.on('error', fail);
-          req.on('timeout', () => {
-            const e = new Error('socket inactivity timeout after ' + timeoutMs + ' ms');
-            try { req.destroy(e); } catch (_) {}
-            fail(e);
-          });
-          if (req.setTimeout) req.setTimeout(timeoutMs);
-          timer = setTimeout(() => {
-            const e = new Error('deadline exceeded after ' + timeoutMs + ' ms');
-            try { req.destroy(e); } catch (_) {}
-            fail(e);
-          }, timeoutMs);
-          req.end();
-        } catch (e) { fail(e); }
+    const timeoutMs = Math.max(5000, Number(options.timeout) || 20000);
+    const id = String(Date.now()) + '-' + (++sequence);
+    let socket = null;
+    let buffer = '';
+    let settled = false;
+    let timer = null;
+
+    function finish(err, value) {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      if (socket) {
+        try { socket.destroy(); } catch (_) {}
       }
-      attempt();
-    }).catch(err => reject(new Error('Network DNS lookup failed; host=' + host + '; ' + err.message)));
+      if (err) reject(err);
+      else resolve(value);
+    }
+
+    try {
+      socket = net.createConnection(SOCKET);
+      socket.on('connect', () => {
+        try {
+          socket.write(JSON.stringify({
+            id: id,
+            url: href,
+            timeout: timeoutMs
+          }) + '\n');
+        } catch (e) {
+          finish(new Error('Weather internet service write failed: ' + e.message));
+        }
+      });
+
+      socket.on('data', chunk => {
+        if (settled) return;
+        buffer += chunk.toString('utf8');
+        if (buffer.length > 3 * 1024 * 1024 + 65536) {
+          finish(new Error('Weather internet service response exceeds 3 MB'));
+          return;
+        }
+        const at = buffer.indexOf('\n');
+        if (at < 0) return;
+
+        let response;
+        try {
+          response = JSON.parse(buffer.slice(0, at));
+        } catch (e) {
+          finish(new Error('Weather internet service returned invalid JSON: ' + e.message));
+          return;
+        }
+        if (!response || String(response.id) !== id) {
+          finish(new Error('Weather internet service response ID mismatch'));
+          return;
+        }
+        if (response.error) {
+          finish(new Error('mgu-uplink HTTPS failed: ' + response.error));
+          return;
+        }
+        const status = Number(response.status);
+        if (status < 200 || status >= 300) {
+          finish(new Error('Weather internet service HTTP status ' + status));
+          return;
+        }
+        try {
+          const body = typeof response.body === 'string' ? response.body : '';
+          resolve(JSON.parse(body));
+          finish(null, JSON.parse(body));
+        } catch (e) {
+          finish(new Error('Weather API returned invalid JSON: ' + e.message));
+        }
+      });
+
+      socket.on('error', err => {
+        finish(new Error('Weather internet service socket error: ' +
+          (err.code ? err.code + ': ' : '') + err.message));
+      });
+      socket.on('end', () => {
+        if (!settled && buffer.indexOf('\n') < 0) {
+          finish(new Error('Weather internet service closed without a response'));
+        }
+      });
+      timer = setTimeout(() => {
+        finish(new Error('Weather internet service timeout after ' + timeoutMs + ' ms'));
+      }, timeoutMs + 5000);
+    } catch (e) {
+      finish(new Error('Weather internet service unavailable: ' + e.message));
+    }
   });
 }
+
 module.exports = { configure, getJson };
