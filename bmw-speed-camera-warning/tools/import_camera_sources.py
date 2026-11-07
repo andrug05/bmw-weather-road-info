@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 CSV_URL = "https://speedcams.world/downloads/ru/ru-all.csv"
 NOMINATIM = "https://nominatim.openstreetmap.org/search"
-OVERPASS_ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter"]
+OVERPASS_ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]
 UA = "BMW-Speed-Camera-Warning/0.5.0 (camera database build)"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data", "camera-db.json")
@@ -79,14 +79,14 @@ def osm_nodes(geometry):
     payload = urllib.parse.urlencode({"data": query}).encode()
     last_error=None
     for endpoint in OVERPASS_ENDPOINTS:
-        for attempt in range(3):
+        for attempt in range(2):
             try:
-                result=json.loads(fetch(endpoint,payload,timeout=90).decode("utf-8"))
+                result=json.loads(fetch(endpoint,payload,timeout=25).decode("utf-8"))
                 last_error=None
                 break
             except Exception as exc:
                 last_error=exc
-                time.sleep(2 + attempt*3)
+                time.sleep(1 + attempt*2)
         if last_error is None: break
     if last_error is not None: raise last_error
     out=[]
