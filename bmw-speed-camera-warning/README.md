@@ -1,34 +1,26 @@
-# BMW Speed Camera Warning
+# BMW Speed Camera Warning 0.4.0
+Standalone BMW MGU ID7 app, separate from Weather; Weather 0.2.7 is not used.
 
-Standalone BMW MGU ID7 app. Package ID: `aurelm_speed_camera_warning`.
+## Map
+- Offline vector/schematic map drawn locally; no map tiles or internet needed to display it.
+- BMW SatellitePositioning GPS marker and heading, camera markers, zoom, selected-camera panel.
+- Road geometry is a simplified drawing from published coordinate ranges for city patrol routes. It is not a complete OSM map or turn-by-turn navigation.
+- Camera markers appear only for source-published coordinates. Two new 2026 complexes are listed but remain un-geocoded.
 
-## Version 0.3.0 — local database, online refresh, proximity logic
+## Yoshkar-Ola camera coordinates
+Driver Helper public camera list:
+- Tsargradsky Avenue: 56.638036, 47.908825
+- Mira Street: 56.633352, 47.945252
+- Karl Marx Street: 56.620741, 47.886987
+- Zvezdnaya Street: 56.615322, 47.970090
 
-- Ships with a bundled camera database and immediately uses it offline.
-- Keeps the last downloaded database in the app's private data directory as `camera-db-cache.json`.
-- Checks the public versioned JSON database at startup and every 6 hours; the Refresh button forces a check.
-- Downloads over HTTPS from this repository's raw GitHub file. Invalid, oversized, incomplete or unreachable downloads are rejected; the previous local copy remains active.
-- A new database is accepted only when its integer `revision` is higher. Increment `revision` when publishing camera data changes.
-- GPS proximity engine: first alert at 500 m; at speeds strictly above 90 km/h, first alert at 700 m; repeat at 200 m. Each camera alerts once per approach and rearms after leaving the approach area.
-- Proximity alerts require a fresh BMW GPS fix with GST accuracy of 50 m or better and a camera record with verified numeric latitude/longitude.
-- Voice/audio output remains disabled. Alert state and events are shown/logged; no radio or system volume is changed.
+New complexes at Tsargradsky/Voskresensky and Lenin/Pervomayskaya are confirmed by local press, but precise device coordinates are not published in consulted articles. They remain null and cannot trigger proximity warnings.
 
-## Current data limitations
+Sources:
+- https://www.driver-helper.ru/kamery-gibdd/joshkar_ola
+- https://www.marpravda.ru/news/auto/v-yoshkar-ole-na-perekrestkakh-za-voditelyami-sledyat-2-novye-skorostnye-kamery/
+- https://www.mk-mari.ru/social/2026/09/17/novye-kamery-kontrolya-skorosti-zarabotali-na-avariynykh-perekrestkakh-yoshkaroly.html
+- https://pg12.ru/news/120500
 
-The four Yoshkar-Ola entries currently have descriptive addresses but null coordinates. They are preserved in the local/remote database, but **cannot trigger distance warnings until exact camera coordinates are verified and added**. Moscow and Sochi lists are empty. Do not treat an address description as a geocoded camera point.
-
-## GPS
-
-GPS is read from BMW's native SOME/IP broadcast:
-- `de.bmw.infotainment.SatellitePositioning`, instance `1`;
-- broadcast `updatePosition`;
-- NMEA string payload.
-
-The GPS integration follows the read-only bridge pattern from [istt1899/bmw-kaluga-cameras](https://github.com/istt1899/bmw-kaluga-cameras). Actual GPS delivery and background operation still require testing on the target MGU.
-
-## Build
-
-GitHub Actions workflow: `.github/workflows/speed-camera-release.yml`.
-Manual workflow dispatch defaults to 0.3.0 and publishes `.tgz` and `.mgu` assets.
-
-No Weather 0.2.7 source, runtime, dependencies or networking code is used.
+Alerts: first 500 m, first 700 m above 90 km/h, repeat 200 m. Fresh BMW GPS fix and numeric GST accuracy <=50 m required. Voice disabled; no radio/system volume changes.
+Bundled/cached database updates at startup, every 6 hours, and manually. Higher revisions only replace local cache.
