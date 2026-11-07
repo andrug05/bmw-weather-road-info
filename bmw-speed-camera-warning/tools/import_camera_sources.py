@@ -188,6 +188,7 @@ def main():
     live_city=[c for c in live_region if inside_polygon(c["lon"],c["lat"],city)]
     # Preserve the manually curated local entries; null-coordinate entries remain visible
     # but cannot generate proximity alerts.
+    old={}
     try:
         old=json.load(open(DATA,encoding="utf-8"))
         next_revision=max(3,int(old.get("revision",2))+1)
@@ -209,7 +210,11 @@ def main():
         third_party=[]
     known_names={re.sub(r'[^а-яa-z0-9]+',' ',c['name'].lower()).strip() for c in city_cameras}
     city_cameras += [c for c in third_party if re.sub(r'[^а-яa-z0-9]+',' ',c['name'].lower()).strip() not in known_names]
-    db={"schemaVersion":1,"revision":next_revision,"updatedAt":datetime.now(timezone.utc).isoformat(),
+    updated_at=datetime.now(timezone.utc).isoformat()
+    if old and old.get("cities")=={"mari-el":region_cameras,"yoshkar-ola":city_cameras,"moscow":[],"sochi":[]} and old.get("sourceCounts")=={"mari-el":{"speedcams":len(speed_region),"osm":len(live_region)},"yoshkar-ola":{"speedcams":len(speed_city),"osm":len(live_city),"local":len(manual),"helpradar":len(third_party)}}:
+        next_revision=int(old.get("revision",next_revision))
+        updated_at=old.get("updatedAt") or updated_at
+    db={"schemaVersion":1,"revision":next_revision,"updatedAt":updated_at,
         "attribution":"© OpenStreetMap contributors; ODbL 1.0. SpeedCams.world data is derived from OpenStreetMap.",
         "cities":{"mari-el":region_cameras,"yoshkar-ola":city_cameras,"moscow":[],"sochi":[]},
         "sourceCounts":{"mari-el":{"speedcams":len(speed_region),"osm":len(live_region)},
