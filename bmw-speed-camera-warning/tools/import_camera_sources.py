@@ -1,0 +1,157 @@
+#!/usr/bin/env python3
+"""Build a compact Mari El camera database from SpeedCams.world and live OSM.
+Address-only third-party listings are deliberately not geocoded into warning points.
+"""
+import csv, io, json, math, os, sys, time, urllib.parse, urllib.request
+from datetime import datetime, timezone
+
+CSV_URL = "https://speedcams.world/downloads/ru/ru-all.csv"
+NOMINATIM = "https://nominatim.openstreetmap.org/search"
+OVERPASS = "https://overpass-api.de/api/interpreter"
+UA = "BMW-Speed-Camera-Warning/0.5.0 (camera database build)"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA = os.path.join(ROOT, "data", "camera-db.json")
+APP = os.path.join(ROOT, "apps", "aurelm_speed_camera_warning", "camera-db.json")
+
+def fetch(url, data=None, timeout=60):
+    req = urllib.request.Request(url, data=data, headers={"User-Agent": UA, "Accept": "*/*"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read()
+
+def nominatim_polygon(name):
+    q = urllib.parse.urlencode({"q": name, "format": "jsonv2", "polygon_geojson": 1, "limit": 1})
+    rows = json.loads(fetch(NOMINATIM + "?" + q).decode("utf-8"))
+    if not rows or "geojson" not in rows[0]:
+        raise RuntimeError("Nominatim did not return boundary polygon for " + name)
+    return rows[0]["geojson"]
+
+def rings(geometry):
+    typ, coords = geometry["type"], geometry["coordinates"]
+    if typ == "Polygon":
+        return coords
+    if typ == "MultiPolygon":
+        return [ring for polygon in coords for ring in polygon]
+    raise RuntimeError("Unsupported boundary geometry: " + typ)
+
+def inside_ring(lon, lat, ring):
+    inside, j = False, len(ring) - 1
+    for i, p in enumerate(ring):
+        x1, y1 = p[0], p[1]; x2, y2 = ring[j][0], ring[j][1]
+        if ((y1 > lat) != (y2 > lat)) and lon < (x2-x1)*(lat-y1)/(y2-y1+1e-30)+x1:
+            inside = not inside
+        j = i
+    return inside
+
+def inside_polygon(lon, lat, geometry):
+    # GeoJSON Polygon rings: first is outer, subsequent rings are holes.
+    for polygon in (geometry["coordinates"] if geometry["type"] == "MultiPolygon" else [geometry["coordinates"]]):
+        if inside_ring(lon, lat, polygon[0]) and not any(inside_ring(lon, lat, h) for h in polygon[1:]):
+            return True
+    return False
+
+def normalize(row, source, source_url):
+    try:
+        lat, lon = float(row["latitude"]), float(row["longitude"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        return None
+    raw_limit = (row.get("maxspeed") or "").strip()
+    try: limit = int(float(raw_limit)) if raw_limit else None
+    except ValueError: limit = None
+    if limit is not None and not (5 <= limit <= 250): limit = None
+    osm_id = str(row.get("id") or "").strip()
+    name = (row.get("name") or row.get("type") or "Камера").strip()[:160]
+    kind = (row.get("type") or "Камера").strip()[:80]
+    key = osm_id if osm_id else ("%0.6f,%0.6f" % (lat, lon))
+    return {"id": "scw-" + key.replace(",", "-"), "name": name, "type": kind,
+            "limit": limit, "lat": lat, "lon": lon, "source": source,
+            "sourceLabel": "SpeedCams.world / OpenStreetMap", "sourceUrl": source_url,
+            "osmId": osm_id or None, "note": "Координаты из опубликованной базы OSM."}
+
+def osm_nodes(geometry):
+    allpts = [p for ring in rings(geometry) for p in ring]
+    minlon=min(p[0] for p in allpts); maxlon=max(p[0] for p in allpts)
+    minlat=min(p[1] for p in allpts); maxlat=max(p[1] for p in allpts)
+    bbox = f"{minlat},{minlon},{maxlat},{maxlon}"
+    query = f'[out:json][timeout:45];(node["highway"="speed_camera"]({bbox});node["enforcement"="maxspeed"]({bbox});node["enforcement"="traffic_signals"]({bbox}););out body;'
+    payload = urllib.parse.urlencode({"data": query}).encode()
+    result = json.loads(fetch(OVERPASS, payload, timeout=90).decode("utf-8"))
+    out=[]
+    for node in result.get("elements", []):
+        lat,lon=node.get("lat"),node.get("lon")
+        if not isinstance(lat,(int,float)) or not isinstance(lon,(int,float)) or not inside_polygon(lon,lat,geometry): continue
+        tags=node.get("tags",{})
+        if tags.get("highway") != "speed_camera" and tags.get("enforcement") not in ("maxspeed","traffic_signals"): continue
+        limit=tags.get("maxspeed","")
+        try: limit=int(float(limit.split()[0]))
+        except (ValueError,IndexError): limit=None
+        typ=tags.get("enforcement") or tags.get("highway") or "Камера"
+        name=tags.get("name") or tags.get("ref") or ("Камера контроля скорости" if typ in ("maxspeed","speed_camera") else "Камера контроля перекрёстка")
+        out.append({"id":"osm-"+str(node["id"]),"name":name[:160],"type":typ[:80],
+            "limit":limit if isinstance(limit,int) and 5<=limit<=250 else None,
+            "lat":float(lat),"lon":float(lon),"source":"OpenStreetMap",
+            "sourceLabel":"OpenStreetMap","sourceUrl":"https://www.openstreetmap.org/node/"+str(node["id"]),
+            "osmId":str(node["id"]),"note":"Объект OSM; статус и фактическое наличие требуют проверки."})
+    return out
+
+def dedupe(items):
+    result=[]; ids=set()
+    for c in items:
+        if not c or c["id"] in ids: continue
+        ids.add(c["id"])
+        duplicate=False
+        for old in result:
+            if old.get("osmId") and c.get("osmId") and old["osmId"]==c["osmId"]:
+                duplicate=True; break
+            # Co-located source records: retain the record with an OSM ID/source priority.
+            dlat=(old["lat"]-c["lat"])*111320
+            dlon=(old["lon"]-c["lon"])*111320*math.cos(math.radians(c["lat"]))
+            if dlat*dlat+dlon*dlon < 25*25:
+                if c.get("osmId") and not old.get("osmId"):
+                    result[result.index(old)] = c
+                duplicate=True; break
+        if not duplicate: result.append(c)
+    return result
+
+def main():
+    region=nominatim_polygon("Республика Марий Эл, Россия")
+    city=nominatim_polygon("Йошкар-Ола, Республика Марий Эл, Россия")
+    raw=fetch(CSV_URL,timeout=90).decode("utf-8-sig")
+    rows=list(csv.DictReader(io.StringIO(raw)))
+    speed_region=[]; speed_city=[]
+    for row in rows:
+        if (row.get("country_code") or "").upper() != "RU": continue
+        c=normalize(row,"SpeedCams.world","https://speedcams.world/download/russia")
+        if not c: continue
+        if inside_polygon(c["lon"],c["lat"],region):
+            speed_region.append(c)
+            if inside_polygon(c["lon"],c["lat"],city): speed_city.append(c)
+    live_region=osm_nodes(region)
+    live_city=[c for c in live_region if inside_polygon(c["lon"],c["lat"],city)]
+    # Preserve the manually curated local entries; null-coordinate entries remain visible
+    # but cannot generate proximity alerts.
+    try:
+        old=json.load(open(DATA,encoding="utf-8"))
+        manual=[c for c in old.get("cities",{}).get("yoshkar-ola",[]) if c.get("source")=="local-curated" or c.get("lat") is None]
+    except Exception:
+        manual=[]
+    for c in manual:
+        c.setdefault("source","local-curated"); c.setdefault("sourceLabel","Подборка Йошкар-Олы")
+        c.setdefault("sourceUrl","https://www.driver-helper.ru/kamery-gibdd/joshkar_ola")
+    region_cameras=dedupe(speed_region+live_region)
+    city_cameras=dedupe(speed_city+live_city+manual)
+    db={"schemaVersion":1,"revision":3,"updatedAt":datetime.now(timezone.utc).isoformat(),
+        "attribution":"© OpenStreetMap contributors; ODbL 1.0. SpeedCams.world data is derived from OpenStreetMap.",
+        "cities":{"mari-el":region_cameras,"yoshkar-ola":city_cameras,"moscow":[],"sochi":[]},
+        "sourceCounts":{"mari-el":{"speedcams":len(speed_region),"osm":len(live_region)},
+                        "yoshkar-ola":{"speedcams":len(speed_city),"osm":len(live_city),"local":len(manual)}}}
+    for path in (DATA,APP):
+        os.makedirs(os.path.dirname(path),exist_ok=True)
+        with open(path,"w",encoding="utf-8") as f: json.dump(db,f,ensure_ascii=False,indent=2)
+    print("Mari El cameras:",len(region_cameras),"SpeedCams:",len(speed_region),"OSM:",len(live_region))
+    print("Yoshkar-Ola cameras:",len(city_cameras),"SpeedCams:",len(speed_city),"OSM:",len(live_city),"local:",len(manual))
+    if not region_cameras or not city_cameras:
+        raise RuntimeError("Source import returned an empty regional or city dataset")
+
+if __name__ == "__main__": main()
