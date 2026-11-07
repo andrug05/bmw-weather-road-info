@@ -32,7 +32,7 @@ function precipitationRate(value) {
 
 function parseInit(value) {
   const s = String(value || '');
-  if (!/^\\d{10}$/.test(s)) throw new Error('7Timer response has invalid init timestamp');
+  if (!/^\d{10}$/.test(s)) throw new Error('7Timer response has invalid init timestamp');
   const date = new Date(Date.UTC(
     Number(s.slice(0, 4)), Number(s.slice(4, 6)) - 1,
     Number(s.slice(6, 8)), Number(s.slice(8, 10))
