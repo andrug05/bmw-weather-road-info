@@ -5,13 +5,13 @@
       "id": "aurelm_weather_traffic",
       "kind": "app",
       "title": "Weather & Road Info",
-      "description": "BMW MGU ID7 weather and road information; diagnostic status and bounded mgu-uplink requests.",
-      "version": "0.2.5",
+      "description": "BMW MGU ID7 weather and road information; 7Timer! global weather forecasts, OpenStreetMap road information and bounded mgu-uplink requests.",
+      "version": "0.2.6",
       "artifact": {
-        "name": "aurelm_weather_traffic@0.2.5.tgz",
-        "size": 564144,
-        "sha256": "507135a374beb428bd5576da09a222016db06e7142c9b1753ef1d808e90def4a",
-        "url": "https://github.com/andrug05/bmw-weather-road-info/releases/download/aurelm_weather_traffic%400.2.5/aurelm_weather_traffic@0.2.5.tgz"
+        "name": "aurelm_weather_traffic@0.2.6.tgz",
+        "size": 565156,
+        "sha256": "0206e249650023e0263294be5fa2e5b725c4227153575d660607dccd3d1b9aba",
+        "url": "https://github.com/andrug05/bmw-weather-road-info/releases/download/aurelm_weather_traffic%400.2.6/aurelm_weather_traffic@0.2.6.tgz"
       },
       "uninstallable": true,
       "mguHmi": [
