@@ -46,7 +46,7 @@ function getHttps(url, redirects) {
             reject(new Error('CAMERA_DB_URL_NOT_ALLOWED')); return;
         }
         const req = https.get(parsed, {
-            headers: { 'User-Agent': 'BMW-Speed-Camera-Warning/0.3.0', 'Accept': 'application/json' }
+            headers: { 'User-Agent': 'BMW-Speed-Camera-Warning/0.4.0', 'Accept': 'application/json' }
         }, (res) => {
             if ([301, 302, 303, 307, 308].indexOf(res.statusCode) >= 0) {
                 const location = res.headers.location;
@@ -80,10 +80,17 @@ class CameraStore {
         this.source = 'bundle';
     }
     loadLocal() {
-        try {
-            this.current = validateDatabase(JSON.parse(fs.readFileSync(this.cachePath, 'utf8')));
+        let cached = null;
+        try { cached = validateDatabase(JSON.parse(fs.readFileSync(this.cachePath, 'utf8'))); }
+        catch (e) { cached = null; }
+        // A newly installed app may ship a newer bundled revision than the user's old cache.
+        if (cached && cached.revision >= this.bundled.revision) {
+            this.current = cached;
             this.source = 'cache';
-        } catch (e) { this.current = this.bundled; this.source = 'bundle'; }
+        } else {
+            this.current = this.bundled;
+            this.source = 'bundle';
+        }
         return { database: this.current, source: this.source };
     }
     async refresh() {
