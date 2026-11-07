@@ -88,5 +88,7 @@ assert.ok(events[0].distanceM <= 700);
 assert.ok(events[0].distanceM > 500);
 assert.strictEqual(fast.update({ lat: 0, lon: 0, speedKmh: 95, accuracyM: 60 }, [fastCamera]).length, 0);
 assert.strictEqual(fast.update({ lat: 0, lon: 0, speedKmh: 95, accuracyM: 5 },
-    [{ id: 'no-coordinates', lat: null, lon: null }]).length, 0, 'null camera coordinates must never become 0,0');\nassert.strictEqual(fast.update({ lat: 0, lon: 0, speedKmh: 95, accuracyM: null }, [fastCamera]).length, 0, 'missing GST accuracy must block alerts');\nassert.ok(distanceMeters({ lat: 0, lon: 0 }, { lat: 0, lon: 0.001 }) > 100);
+    [{ id: 'no-coordinates', lat: null, lon: null }]).length, 0, 'null camera coordinates must never become 0,0');
+assert.strictEqual(fast.update({ lat: 0, lon: 0, speedKmh: 95, accuracyM: null }, [fastCamera]).length, 0, 'missing GST accuracy must block alerts');
+assert.ok(distanceMeters({ lat: 0, lon: 0 }, { lat: 0, lon: 0.001 }) > 100);
 console.log('Speed Camera Warning GPS, database and proximity tests passed');
