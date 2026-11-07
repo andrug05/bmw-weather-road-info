@@ -1,30 +1,25 @@
 # BMW Speed Camera Warning
 
-Отдельное приложение для BMW MGU ID7. Package ID: `aurelm_speed_camera_warning`.
+Standalone BMW MGU ID7 application. Package ID: `aurelm_speed_camera_warning`.
 
-## Версия 0.1.0 — Readout prototype
+## Version 0.1.0 — offline camera directory
 
-На этом этапе собран минимальный OAP-прототип штатного голосового интерфейса BMW:
+The app is packaged independently and includes:
+- native MGU menu with city selection;
+- local camera directory for Yoshkar-Ola;
+- previous/next navigation through camera records;
+- local database with no dependency on the Weather app or internet access.
 
-- отдельный пакет, manifest и package ID;
-- регистрация через `ReadoutService.registerReadoutClient`;
-- получение имени выделенного `ReadoutInstance`;
-- отправка тестовой фразы через `ReadoutInstance.startReadout`;
-- русский язык Readout: enum `RUSSISCH = 14`;
-- английский язык: enum `ENGLISCH__UK = 2`;
-- экранная кнопка проверки голоса и отображение ответа SOME/IP.
+## Known limitations
 
-## Что пока не заявляется как готовое
+- GPS proximity detection is not active: the vehicle-position SOME/IP interface has not yet been confirmed on the target MGU.
+- Voice output is disabled; the app does not alter radio or system volume.
+- Camera records are informational. Addresses are not verified GPS points and must not be treated as guaranteed camera locations.
+- Moscow and Sochi lists are empty pending verified data.
 
-- Фоновая озвучка при активной штатной навигации ещё не подтверждена.
-- Источник координат автомобиля и его поведение при скрытом приложении ещё требуют проверки на MGU.
-- База камер и расчёт предупреждений не включены в этот тестовый пакет.
-- Приложение не меняет громкость радио и не использует неподтверждённый аудиоканал.
+The app does not use Weather 0.2.7 or the Weather & Road Info source, runtime, dependencies or networking code.
 
-## Сборка
+## Build
 
 GitHub Actions workflow: `.github/workflows/speed-camera-release.yml`.
-
-После успешной сборки будет опубликован отдельный архив `.tgz` и `.mgu` в GitHub Release с тегом `speed_camera_warning@0.1.0`.
-
-Weather & Road Info — отдельное приложение; его исходники, runtime, зависимости и пакет не используются этим проектом.
+Manual workflow dispatch accepts a release version. A successful run publishes `.tgz` and `.mgu` files as a GitHub Release.
