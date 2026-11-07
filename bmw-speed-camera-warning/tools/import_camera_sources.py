@@ -192,7 +192,7 @@ def main():
     try:
         old=json.load(open(DATA,encoding="utf-8"))
         next_revision=max(3,int(old.get("revision",2))+1)
-        manual=[c for c in old.get("cities",{}).get("yoshkar-ola",[]) if c.get("id","").startswith("yola-") or c.get("source")=="local-curated" or c.get("lat") is None]
+        manual=[c for c in old.get("cities",{}).get("yoshkar-ola",[]) if c.get("id","").startswith("yola-") or c.get("source")=="local-curated"]
     except Exception:
         next_revision=3
         manual=[]
