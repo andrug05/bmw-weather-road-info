@@ -16,6 +16,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: speed-camera-warning-release
+  cancel-in-progress: true
+
 jobs:
   build-release:
     runs-on: ubuntu-latest
