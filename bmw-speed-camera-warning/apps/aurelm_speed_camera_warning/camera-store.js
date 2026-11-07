@@ -32,7 +32,12 @@ function validateDatabase(value) {
             }
             return { id: camera.id, name: camera.name.trim(),
                 type: typeof camera.type === 'string' ? camera.type.slice(0, 100) : 'Камера',
-                limit, lat, lon, note: typeof camera.note === 'string' ? camera.note.slice(0, 300) : '' };
+                limit, lat, lon,
+                source: typeof camera.source === 'string' ? camera.source.slice(0, 80) : 'unknown',
+                sourceLabel: typeof camera.sourceLabel === 'string' ? camera.sourceLabel.slice(0, 100) : '',
+                sourceUrl: typeof camera.sourceUrl === 'string' && /^https:\/\//.test(camera.sourceUrl) ? camera.sourceUrl.slice(0, 300) : '',
+                osmId: typeof camera.osmId === 'string' ? camera.osmId.slice(0, 40) : '',
+                note: typeof camera.note === 'string' ? camera.note.slice(0, 300) : '' };
         });
     });
     return { schemaVersion: 1, revision: value.revision,
@@ -46,7 +51,7 @@ function getHttps(url, redirects) {
             reject(new Error('CAMERA_DB_URL_NOT_ALLOWED')); return;
         }
         const req = https.get(parsed, {
-            headers: { 'User-Agent': 'BMW-Speed-Camera-Warning/0.4.0', 'Accept': 'application/json' }
+            headers: { 'User-Agent': 'BMW-Speed-Camera-Warning/0.5.0', 'Accept': 'application/json' }
         }, (res) => {
             if ([301, 302, 303, 307, 308].indexOf(res.statusCode) >= 0) {
                 const location = res.headers.location;
