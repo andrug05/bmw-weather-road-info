@@ -43,6 +43,8 @@ jobs:
           git add bmw-speed-camera-warning/data/camera-db.json bmw-speed-camera-warning/apps/${APP_ID}/camera-db.json
           if ! git diff --cached --quiet; then
             git commit -m "Update regional camera database [skip ci]"
+            git fetch origin main
+            git rebase origin/main
             git push
           fi
 
