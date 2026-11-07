@@ -75,7 +75,7 @@ def osm_nodes(geometry):
     minlon=min(p[0] for p in allpts); maxlon=max(p[0] for p in allpts)
     minlat=min(p[1] for p in allpts); maxlat=max(p[1] for p in allpts)
     bbox = f"{minlat},{minlon},{maxlat},{maxlon}"
-    query = f'[out:json][timeout:45];(node["highway"="speed_camera"]({bbox});node["enforcement"="maxspeed"]({bbox});node["enforcement"="traffic_signals"]({bbox}););out body;'
+    query = f'[out:json][timeout:45];(node["highway"="speed_camera"]({bbox});node["enforcement"="maxspeed"]({bbox}););out body;'
     payload = urllib.parse.urlencode({"data": query}).encode()
     result = json.loads(fetch(OVERPASS, payload, timeout=90).decode("utf-8"))
     out=[]
@@ -83,7 +83,7 @@ def osm_nodes(geometry):
         lat,lon=node.get("lat"),node.get("lon")
         if not isinstance(lat,(int,float)) or not isinstance(lon,(int,float)) or not inside_polygon(lon,lat,geometry): continue
         tags=node.get("tags",{})
-        if tags.get("highway") != "speed_camera" and tags.get("enforcement") not in ("maxspeed","traffic_signals"): continue
+        if tags.get("highway") != "speed_camera" and tags.get("enforcement") != "maxspeed": continue
         limit=tags.get("maxspeed","")
         try: limit=int(float(limit.split()[0]))
         except (ValueError,IndexError): limit=None
