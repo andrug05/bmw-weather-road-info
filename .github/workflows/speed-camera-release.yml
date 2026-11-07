@@ -6,7 +6,7 @@ on:
       version:
         description: "Speed Camera Warning version"
         required: true
-        default: "0.1.0"
+        default: "0.2.0"
   push:
     branches: [main]
     paths:
@@ -20,7 +20,7 @@ jobs:
   build-release:
     runs-on: ubuntu-latest
     env:
-      APP_VERSION: ${{ inputs.version || '0.1.0' }}
+      APP_VERSION: ${{ inputs.version || '0.2.0' }}
       APP_ID: aurelm_speed_camera_warning
     steps:
       - uses: actions/checkout@v5
@@ -44,7 +44,19 @@ jobs:
       - name: Validate and build
         run: |
           node --check upstream/apps/${APP_ID}/main.js
+          node --check upstream/apps/${APP_ID}/gps.js
           node bmw-speed-camera-warning/tests/readout-config.test.js
+          # Run this app in the background so BMW GPS events continue while
+          # the native navigation screen is in the foreground.
+          python3 - <<'PY'
+          p='upstream/kit/tools/build.py'
+          s=open(p,encoding='utf-8').read()
+          old="'priority': 'PRIO_LOW',\n            'visibility': 'FOREGROUND', 'latencyClass': 'FOREGROUND', 'loggingId': spec['loggingId'],\n            'userLoginRequired': False, 'backgroundPriority': 200, 'someipManifest': 'manifest.json',"
+          new="'priority': 'PRIO_HIGHEST',\n            'visibility': 'BACKGROUND', 'latencyClass': 'HIGH_PRIO_BACKGROUND', 'loggingId': spec['loggingId'],\n            'userLoginRequired': False, 'backgroundPriority': 50, 'someipManifest': 'manifest.json',"
+          if old not in s:
+              raise SystemExit('Could not find expected OAP app settings in upstream build.py')
+          open(p,'w',encoding='utf-8').write(s.replace(old,new,1))
+          PY
           cd upstream
           python3 kit/tools/build.py "${APP_ID}"
           mkdir -p ../release
