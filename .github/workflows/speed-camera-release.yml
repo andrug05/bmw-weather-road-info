@@ -89,7 +89,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="speed_camera_warning@${APP_VERSION}"
+          TAG="${APP_ID}@${APP_VERSION}"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" \
               "release/${APP_ID}@${APP_VERSION}.tgz" \
