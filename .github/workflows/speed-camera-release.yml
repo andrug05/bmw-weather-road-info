@@ -6,7 +6,7 @@ on:
       version:
         description: "Speed Camera Warning version"
         required: true
-        default: "0.4.0"
+        default: "0.5.0"
   push:
     branches: [main]
     paths:
@@ -20,7 +20,7 @@ jobs:
   build-release:
     runs-on: ubuntu-latest
     env:
-      APP_VERSION: ${{ inputs.version || '0.4.0' }}
+      APP_VERSION: ${{ inputs.version || '0.5.0' }}
       APP_ID: aurelm_speed_camera_warning
     steps:
       - uses: actions/checkout@v5
@@ -28,6 +28,17 @@ jobs:
         with:
           repository: aurelmarius/bmw-games
           path: upstream
+
+      - name: Import regional camera sources
+        run: |
+          python3 bmw-speed-camera-warning/tools/import_camera_sources.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bmw-speed-camera-warning/data/camera-db.json bmw-speed-camera-warning/apps/${APP_ID}/camera-db.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update regional camera database [skip ci]"
+            git push
+          fi
 
       - name: Prepare standalone app
         run: |
