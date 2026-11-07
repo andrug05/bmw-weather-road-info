@@ -10,7 +10,7 @@ const REFRESH_INTERVAL_MS=21600000,W=1600,H=520;
 const MAP={x:24,y:66,w:1120,h:420},P={x:1170,y:66,w:406,h:420};
 const C={bg:'#080d13',panel:'#101923',road:'#334252',edge:'#637487',text:'#e9f0f6',muted:'#91a2b5',blue:'#58b6ff',red:'#ff525e',green:'#5de0a1',yellow:'#ffd166',grid:'#172430'};
 mgu.run({async start(ctx){
- const {ui,settings,log,dataDir}=ctx;let city=String(settings.get('city')||'yoshkar-ola'),index=0,zoom=1,fix=null,lastAlert='Нет предупреждений';
+ const {ui,settings,log,dataDir}=ctx;let city=String(settings.get('city')||'yoshkar-ola'),index=0,zoom=.75,fix=null,lastAlert='Нет предупреждений';
  const store=new CameraStore({dataDir,bundled:bundledDatabase});let database=store.loadLocal().database;
  const gps=new BmwGps(),proximity=new ProximityWarnings();let refreshInFlight=null;
  const cameras=()=>database.cities&&Array.isArray(database.cities[city])?database.cities[city]:[];
@@ -22,7 +22,7 @@ mgu.run({async start(ctx){
  function pin(cv,x,y,sel){cv.circle(x,y,sel?13:10,'#071019');cv.circle(x,y,sel?9:7,C.red);cv.circle(x,y,2.8,'#fff');}
  function drawMap(cv){
   cv.roundRect(MAP.x,MAP.y,MAP.w,MAP.h,14,'#0b151e');
-  const center=fix?{lat:fix.lat,lon:fix.lon}:{lat:56.637,lon:47.902},scale=.145*zoom;
+  const center=fix?{lat:fix.lat,lon:fix.lon}:{lat:56.630,lon:47.928},scale=.145*zoom;
   for(let x=MAP.x+40;x<MAP.x+MAP.w;x+=80)ln(cv,[x,MAP.y+8],[x,MAP.y+MAP.h-8],1,C.grid);
   for(let y=MAP.y+30;y<MAP.y+MAP.h;y+=60)ln(cv,[MAP.x+8,y],[MAP.x+MAP.w-8,y],1,C.grid);
   (city==='yoshkar-ola'?cityMap.roads:[]).forEach(r=>{
