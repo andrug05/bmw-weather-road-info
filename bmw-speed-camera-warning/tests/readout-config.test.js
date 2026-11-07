@@ -49,7 +49,7 @@ assert.ok(Math.abs(fix.lat - 56.1166667) < 0.00001);
 assert.ok(Math.abs(fix.lon - 47.25) < 0.00001);
 assert.ok(fix.accuracyM > 0 && fix.accuracyM < 15);
 assert.strictEqual(fix.speedKmh, 18.52);
-assert.strictEqual(nmeaFix({ nmeaString: nmea.replace(/\\*[0-9A-F]{2}/, '*00') }, now), null,
+assert.strictEqual(nmeaFix({ nmeaString: nmea.replace(/\*[0-9A-F]{2}/, '*00') }, now), null,
     'bad NMEA checksum must be rejected');
 assert.strictEqual(nmeaFix({ nmeaString: '$GNRMC,broken' }, now), null);
 console.log('Speed Camera Warning GPS tests passed');
