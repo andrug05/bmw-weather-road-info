@@ -1,26 +1,44 @@
-# BMW Speed Camera Warning 0.4.0
-Standalone BMW MGU ID7 app, separate from Weather; Weather 0.2.7 is not used.
+# BMW Speed Camera Warning 0.5.0
 
-## Map
-- Offline vector/schematic map drawn locally; no map tiles or internet needed to display it.
-- BMW SatellitePositioning GPS marker and heading, camera markers, zoom, selected-camera panel.
-- Road geometry is a simplified drawing from published coordinate ranges for city patrol routes. It is not a complete OSM map or turn-by-turn navigation.
-- Camera markers appear only for source-published coordinates. Two new 2026 complexes are listed but remain un-geocoded.
+Standalone BMW MGU ID7 app. Independent of Weather; Weather 0.2.7 is not used.
 
-## Yoshkar-Ola camera coordinates
-Driver Helper public camera list:
-- Tsargradsky Avenue: 56.638036, 47.908825
-- Mira Street: 56.633352, 47.945252
-- Karl Marx Street: 56.620741, 47.886987
-- Zvezdnaya Street: 56.615322, 47.970090
+## Database sections
 
-New complexes at Tsargradsky/Voskresensky and Lenin/Pervomayskaya are confirmed by local press, but precise device coordinates are not published in consulted articles. They remain null and cannot trigger proximity warnings.
+- **Republic of Mari El** — regional dataset clipped to the Nominatim administrative boundary. Main import: SpeedCams.world Russia CSV; additional current OSM camera nodes from Overpass.
+- **Yoshkar-Ola** — a separate city section containing SpeedCams.world points inside the city boundary, OSM camera nodes, the curated local points, and third-party address candidates from HelpRadar (which cites SpeedCamOnline and OSM).
+- Moscow and Sochi remain empty placeholders.
 
-Sources:
-- https://www.driver-helper.ru/kamery-gibdd/joshkar_ola
-- https://www.marpravda.ru/news/auto/v-yoshkar-ole-na-perekrestkakh-za-voditelyami-sledyat-2-novye-skorostnye-kamery/
-- https://www.mk-mari.ru/social/2026/09/17/novye-kamery-kontrolya-skorosti-zarabotali-na-avariynykh-perekrestkakh-yoshkaroly.html
-- https://pg12.ru/news/120500
+The city list is not a subset-only view: Yoshkar-Ola receives its own source merge. Records retain source labels, OSM IDs and source links. Co-located records are deduplicated.
 
-Alerts: first 500 m, first 700 m above 90 km/h, repeat 200 m. Fresh BMW GPS fix and numeric GST accuracy <=50 m required. Voice disabled; no radio/system volume changes.
-Bundled/cached database updates at startup, every 6 hours, and manually. Higher revisions only replace local cache.
+### Important coordinate rule
+
+HelpRadar / SpeedCamOnline address-only rows are shown in the Yoshkar-Ola list but have null coordinates until the camera location is confirmed. They do not appear as map pins and cannot trigger GPS alerts. The same applies to the two newly reported 2026 intersections until exact device coordinates are verified. Do not geocode a street address and treat the building coordinate as the camera location.
+
+## Updating and offline operation
+
+The GitHub build imports SpeedCams.world CSV, current OSM camera nodes and HelpRadar city listings, then stores the merged JSON in the repository and bundles it into the MGU app. The app checks the versioned JSON at startup, every six hours and manually. The database is cached locally; failed downloads keep the last good cache. Warnings use the local database without internet.
+
+SpeedCams.world data is derived from OpenStreetMap. OSM source snapshot may lag current edits; live Overpass additions are merged during build. HelpRadar states that its list draws on SpeedCamOnline, OSM and visitor reports.
+
+## Map and alerts
+
+- Offline vector/schematic map, GPS marker, camera markers and source label.
+- Yoshkar-Ola road drawing is a simplified scheme from published route coordinate ranges, not a full OSM street map or navigation.
+- First warning: 500 m; at speed strictly above 90 km/h: 700 m; repeat warning: 200 m.
+- GPS warnings require a fresh BMW GPS fix and numeric GST accuracy no worse than 50 m.
+- Unlocated entries are excluded from proximity calculations.
+- Voice output remains disabled; the app does not manipulate radio/system volume.
+
+## Attribution and licences
+
+Camera data from OpenStreetMap contributors is available under ODbL 1.0. SpeedCams.world republishes OSM-derived data. Keep the attribution and licence with redistributed database extracts: © OpenStreetMap contributors, https://www.openstreetmap.org/copyright. HelpRadar / SpeedCamOnline is an additional discovery source; its unlocated address rows are not converted into coordinate data.
+
+## Sources
+
+- SpeedCams.world Russia download: https://speedcams.world/download/russia
+- OpenStreetMap: https://www.openstreetmap.org/
+- Overpass API: https://overpass-api.de/
+- HelpRadar Yoshkar-Ola: https://helpradar.ru/kamery-gibdd/ioshkar-ola
+- SpeedCamOnline Russia: https://speedcamonline.ru/map/Rus/1562/
+- Curated Yoshkar-Ola coordinates: https://www.driver-helper.ru/kamery-gibdd/joshkar_ola
+- 2026 new intersection installations: https://www.marpravda.ru/news/auto/v-yoshkar-ole-na-perekrestkakh-za-voditelyami-sledyat-2-novye-skorostnye-kamery/
