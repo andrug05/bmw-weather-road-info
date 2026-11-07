@@ -64,7 +64,7 @@ assert.strictEqual(nmeaFix({ nmeaString: '$GNRMC,broken' }, now), null);
 assert.strictEqual(FIRST_WARNING_M, 500);
 assert.strictEqual(FAST_WARNING_M, 700);
 assert.strictEqual(SECOND_WARNING_M, 200);
-const camera = { id: 'test-camera', lat: 0, lon: 0.0045, name: 'test' };
+const camera = { id: 'test-camera', lat: 0, lon: 0.00449, name: 'test' };
 const slow = new ProximityWarnings();
 let events = slow.update({ lat: 0, lon: 0, speedKmh: 60, accuracyM: 5 }, [camera]);
 assert.strictEqual(events.length, 1);
