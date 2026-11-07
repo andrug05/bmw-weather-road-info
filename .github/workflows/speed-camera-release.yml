@@ -56,9 +56,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="speed_camera_warning@${APP_VERSION}"
-          gh release create "$TAG" \
-            "release/${APP_ID}@${APP_VERSION}.tgz" \
-            "release/${APP_ID}@${APP_VERSION}.mgu" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "BMW Speed Camera Warning ${APP_VERSION}" \
-            --notes "Standalone BMW MGU ID7 Readout voice-test prototype. This release does not modify Weather & Road Info."
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" \
+              "release/${APP_ID}@${APP_VERSION}.tgz" \
+              "release/${APP_ID}@${APP_VERSION}.mgu" \
+              --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" \
+              "release/${APP_ID}@${APP_VERSION}.tgz" \
+              "release/${APP_ID}@${APP_VERSION}.mgu" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "BMW Speed Camera Warning ${APP_VERSION}" \
+              --notes "Standalone offline BMW MGU ID7 camera directory. GPS proximity alerts and voice output are not enabled."
+          fi
