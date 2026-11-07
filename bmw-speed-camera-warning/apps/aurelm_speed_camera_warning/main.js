@@ -1,112 +1,86 @@
 'use strict';
 
+/*
+ * Standalone BMW MGU ID7 camera directory.
+ * This release intentionally does not claim GPS proximity detection or voice
+ * announcements: the vehicle-position SOME/IP interface has not yet been
+ * identified and tested on the target head unit.
+ */
 const mgu = require('./kit/mgu');
-const signals = require('./kit/signals');
+const database = require('./camera-db.json');
 
-const READOUT_SERVICE = 'de.bmw.infotainment.speech.readout.ReadoutService';
-const READOUT_INSTANCE = 'de.bmw.infotainment.speech.readout.ReadoutInstance';
-const CLIENT_UUID = 'aurelm-speed-camera-warning-readout-v1';
-
-function feedbackCode(value) {
-    if (typeof value === 'number') return value;
-    if (!value || typeof value !== 'object') return null;
-    for (const key of ['ReadoutFeedbackCode', 'feedbackCode', 'code']) {
-        if (typeof value[key] === 'number') return value[key];
-    }
-    return null;
-}
+const CITY_LABELS = {
+    'yoshkar-ola': 'Йошкар-Ола',
+    'moscow': 'Москва',
+    'sochi': 'Сочи'
+};
 
 mgu.run({
     async start(ctx) {
         const { ui, settings, log } = ctx;
-        let serviceProxy = null;
-        let readoutProxy = null;
-        let registered = false;
-        let busy = false;
+        let city = String(settings.get('city') || 'yoshkar-ola');
+        let index = 0;
 
-        function show(status, detail) {
-            Promise.resolve(ui.text('STATUS', status)).catch(() => {});
-            Promise.resolve(ui.text('DETAIL', detail)).catch(() => {});
+        function list() {
+            return Array.isArray(database[city]) ? database[city] : [];
         }
 
-        async function ensureReadout() {
-            if (readoutProxy && registered) return readoutProxy;
-
-            if (!serviceProxy) {
-                serviceProxy = await signals.proxy(READOUT_SERVICE, 'ReadoutServiceHMI');
-            }
-
-            const registration = await signals.call(
-                serviceProxy,
-                'registerReadoutClient',
-                { uuid: CLIENT_UUID },
-                7000
-            );
-
-            const code = feedbackCode(registration);
-            if (code !== 0) {
-                throw new Error('registerReadoutClient: ' +
-                    (code === null ? JSON.stringify(registration) : 'feedback ' + code));
-            }
-
-            const instanceName = registration && registration.instanceName;
-            if (!instanceName || typeof instanceName !== 'string') {
-                throw new Error('BMW Readout did not return an instanceName: ' +
-                    JSON.stringify(registration));
-            }
-
-            readoutProxy = await signals.proxy(READOUT_INSTANCE, instanceName);
-            registered = true;
-            return readoutProxy;
+        function show(id, value) {
+            Promise.resolve(ui.text(id, String(value))).catch((error) => {
+                log.warn('UI update ' + id + ': ' + error);
+            });
         }
 
-        async function speakTest() {
-            if (busy) return;
-            busy = true;
-            show('Readout: подключение…', 'Регистрация клиента штатного BMW Readout');
-            try {
-                const proxy = await ensureReadout();
-                const language = String(settings.get('voice_language') || 'ru');
-                const text = language === 'en'
-                    ? 'Speed camera warning system. Voice test successful.'
-                    : 'Проверка голосового оповещения. Система предупреждения о камерах запущена.';
+        function render(message) {
+            const cameras = list();
+            if (index >= cameras.length) index = 0;
+            if (index < 0) index = Math.max(0, cameras.length - 1);
 
-                const result = await signals.call(proxy, 'startReadout', {
-                    readoutObject: {
-                        autoPlayNextElement: false,
-                        genre: '',
-                        nextElement: 0,
-                        offboard: false,
-                        previousElement: 0,
-                        text,
-                        textFromResource: 0,
-                        textLanguage: language === 'en' ? 2 : 14
-                    }
-                }, 10000);
+            show('CITY', 'Город: ' + (CITY_LABELS[city] || city));
+            show('COUNT', 'Записей в локальной базе: ' + cameras.length);
+            show('GPS_STATUS', 'GPS: не подключён — автоматические предупреждения не работают');
+            show('VOICE_STATUS', 'Голос: отключён — громкость автомобиля не меняется');
 
-                const code = feedbackCode(result);
-                if (code === 0) {
-                    show('Readout: запрос принят', 'BMW вернул OK. Проверьте, прозвучала ли фраза.');
-                } else {
-                    show('Readout: ошибка', 'Ответ startReadout: ' + JSON.stringify(result));
-                }
-                log.info('Readout startReadout result: ' + JSON.stringify(result));
-            } catch (error) {
-                const message = error && error.message ? error.message : String(error);
-                show('Readout: недоступен', message);
-                log.warn('Readout voice test failed: ' + message);
-            } finally {
-                busy = false;
+            if (!cameras.length) {
+                show('CAMERA', 'Для этого города проверенных камер пока нет');
+                show('LIMIT', 'Ограничение: —');
+                show('INFO', message || 'Выберите Йошкар-Олу или добавьте проверенные точки в camera-db.json');
+                return;
             }
+
+            const camera = cameras[index];
+            show('CAMERA', (index + 1) + '/' + cameras.length + ' · ' + camera.name);
+            show('LIMIT', 'Ограничение: ' + (camera.limit ? camera.limit + ' км/ч' : 'не указано'));
+            show('INFO', (camera.type || 'Камера') + ' · ' + (camera.note || 'Локальная запись'));
         }
 
-        ui.onClick('BTN_TEST_VOICE', speakTest);
+        ui.onClick('BTN_PREV', () => {
+            index--;
+            render('Предыдущая запись');
+        });
+        ui.onClick('BTN_NEXT', () => {
+            index++;
+            render('Следующая запись');
+        });
+        ui.onClick('BTN_REFRESH', () => {
+            const selectedCity = String(settings.get('city') || 'yoshkar-ola');
+            city = database[selectedCity] ? selectedCity : 'yoshkar-ola';
+            index = 0;
+            render('Локальная база перечитана');
+        });
 
-        show('Readout: не проверен', 'Нажмите кнопку для проверки штатного голоса BMW');
-        log.info('Speed Camera Warning 0.1.0 started; standalone Readout test mode');
+        settings.onChange((key) => {
+            if (key !== 'city') return;
+            city = String(settings.get('city') || 'yoshkar-ola');
+            index = 0;
+            render('Город изменён');
+        });
 
-        // Keep the registration alive for the lifetime of this OAP process.
-        // Camera/GPS monitoring is deliberately not enabled until the vehicle
-        // position source and background Readout behavior are verified.
+        ui.onVisible((name, visible) => {
+            if (name === 'MAIN' && visible) render('Справочник готов');
+        });
+
+        render('Справочник готов');
+        log.info('Speed Camera Warning 0.1.0 started; offline directory mode');
     }
 });
