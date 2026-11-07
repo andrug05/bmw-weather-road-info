@@ -1,60 +1,40 @@
 {
   "id": "aurelm_speed_camera_warning",
   "title": "Speed Camera Warning",
-  "description": "Standalone BMW MGU ID7 speed camera warning prototype with native BMW Readout voice test.",
+  "description": "Offline справочник дорожных камер для BMW MGU ID7. GPS-оповещения и голос отключены до проверки интерфейсов автомобиля.",
   "version": "0.1.0",
   "vendor": "Andrug05",
   "loggingId": "SCAM",
   "iconGlyph": "camera",
-  "signals": {
-    "de.bmw.infotainment.speech.readout.ReadoutService": {
-      "_instances": "ReadoutServiceHMI",
-      "_methods": [
-        "registerReadoutClient",
-        "unregisterReadoutClient"
-      ]
-    },
-    "de.bmw.infotainment.speech.readout.ReadoutInstance": {
-      "_instances": "*",
-      "_methods": [
-        "startReadout"
-      ],
-      "currentStatus": "r"
-    }
-  },
   "screens": [
     {
       "name": "MAIN",
       "kind": "menu",
       "title": "Speed Camera Warning",
       "items": [
-        ["button", "BTN_TEST_VOICE", "Проверить голосовое оповещение"],
-        ["text", "STATUS", "Readout: не проверен"],
-        ["text", "DETAIL", "Нажмите кнопку для теста штатного голоса BMW"]
+        ["button", "BTN_PREV", "Предыдущая камера"],
+        ["button", "BTN_NEXT", "Следующая камера"],
+        ["button", "BTN_REFRESH", "Обновить список"],
+        ["text", "CITY", "Город: Йошкар-Ола"],
+        ["text", "COUNT", "Камер в базе: 0"],
+        ["text", "CAMERA", "Камера не выбрана"],
+        ["text", "LIMIT", "Ограничение: —"],
+        ["text", "GPS_STATUS", "GPS: не подключён"],
+        ["text", "VOICE_STATUS", "Голос: отключён"],
+        ["text", "INFO", "Локальная база камер"]
       ]
     }
   ],
   "settings": [
     {
-      "key": "voice_language",
-      "label": "Язык оповещений",
+      "key": "city",
+      "label": "Город",
       "type": "choice",
-      "default": "ru",
+      "default": "yoshkar-ola",
       "options": [
-        ["ru", "Русский"],
-        ["en", "English"]
-      ]
-    },
-    {
-      "key": "warning_distance",
-      "label": "Дистанция предупреждения",
-      "type": "choice",
-      "default": "500",
-      "options": [
-        ["300", "300 м"],
-        ["500", "500 м"],
-        ["800", "800 м"],
-        ["1000", "1000 м"]
+        ["yoshkar-ola", "Йошкар-Ола"],
+        ["moscow", "Москва"],
+        ["sochi", "Сочи"]
       ]
     }
   ]
