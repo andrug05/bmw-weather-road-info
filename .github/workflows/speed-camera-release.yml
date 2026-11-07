@@ -1,0 +1,64 @@
+name: Build BMW Speed Camera Warning
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Speed Camera Warning version"
+        required: true
+        default: "0.1.0"
+  push:
+    branches: [main]
+    paths:
+      - "bmw-speed-camera-warning/**"
+      - ".github/workflows/speed-camera-release.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    env:
+      APP_VERSION: ${{ inputs.version || '0.1.0' }}
+      APP_ID: aurelm_speed_camera_warning
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: aurelmarius/bmw-games
+          path: upstream
+
+      - name: Prepare standalone app
+        run: |
+          mkdir -p upstream/apps/${APP_ID}
+          cp -a bmw-speed-camera-warning/apps/${APP_ID}/. upstream/apps/${APP_ID}/
+          python3 - <<'PY'
+          import json, os
+          p=f"upstream/apps/{os.environ['APP_ID']}/app.json"
+          d=json.load(open(p,encoding='utf-8'))
+          d['version']=os.environ['APP_VERSION']
+          json.dump(d,open(p,'w',encoding='utf-8'),ensure_ascii=False,indent=2)
+          PY
+
+      - name: Validate and build
+        run: |
+          node --check upstream/apps/${APP_ID}/main.js
+          node bmw-speed-camera-warning/tests/readout-config.test.js
+          cd upstream
+          python3 kit/tools/build.py "${APP_ID}"
+          mkdir -p ../release
+          cp "dist/${APP_ID}@${APP_VERSION}.tgz" ../release/
+          cp "dist/${APP_ID}@${APP_VERSION}.mgu" ../release/
+
+      - name: Publish standalone app
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="speed_camera_warning@${APP_VERSION}"
+          gh release create "$TAG" \
+            "release/${APP_ID}@${APP_VERSION}.tgz" \
+            "release/${APP_ID}@${APP_VERSION}.mgu" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "BMW Speed Camera Warning ${APP_VERSION}" \
+            --notes "Standalone BMW MGU ID7 Readout voice-test prototype. This release does not modify Weather & Road Info."
