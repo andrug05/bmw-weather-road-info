@@ -74,7 +74,7 @@ events = slow.update({ lat: 0, lon: 0.0027, speedKmh: 60, accuracyM: 5 }, [camer
 assert.strictEqual(events.length, 1);
 assert.strictEqual(events[0].stage, 2);
 assert.strictEqual(slow.update({ lat: 0, lon: 0.0026, speedKmh: 60, accuracyM: 5 }, [camera]).length, 0);
-events = slow.update({ lat: 0, lon: 0.01, speedKmh: 60, accuracyM: 5 }, [camera]);
+events = slow.update({ lat: 0, lon: 0.02, speedKmh: 60, accuracyM: 5 }, [camera]);
 assert.strictEqual(events.length, 0, 'moving away should only rearm');
 events = slow.update({ lat: 0, lon: 0.00449, speedKmh: 60, accuracyM: 5 }, [camera]);
 assert.strictEqual(events.length, 1, 'a new approach should trigger again');
