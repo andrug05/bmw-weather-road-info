@@ -112,9 +112,9 @@ mgu.run({
                     render('База камер обновлена');
                 } else if (result.error) {
                     log.info('Camera database update unavailable: ' + result.error);
-                    if (reason === 'manual') render('Нет сети; используется сохранённая база');
-                } else if (reason === 'manual') {
-                    render('База уже актуальна');
+                    if (reason === 'manual' || reason === 'startup') render('Нет сети; используется сохранённая база');
+                } else if (reason === 'manual' || reason === 'startup') {
+                    render('База актуальна; проверка выполнена');
                 }
                 return result;
             }).catch((error) => {
