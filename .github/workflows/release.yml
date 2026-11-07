@@ -5,7 +5,7 @@ on:
       version:
         description: "App version"
         required: true
-        default: "0.2.4"
+        default: "0.2.5"
   push:
     branches: [main]
     paths:
@@ -17,7 +17,7 @@ jobs:
   build-release:
     runs-on: ubuntu-latest
     env:
-      APP_VERSION: ${{ inputs.version || '0.2.4' }}
+      APP_VERSION: ${{ inputs.version || '0.2.5' }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/checkout@v5
