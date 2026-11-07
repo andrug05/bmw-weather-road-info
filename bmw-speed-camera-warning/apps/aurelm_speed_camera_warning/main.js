@@ -1,13 +1,13 @@
 'use strict';
 
 /*
- * Standalone BMW MGU ID7 camera directory.
- * This release intentionally does not claim GPS proximity detection or voice
- * announcements: the vehicle-position SOME/IP interface has not yet been
- * identified and tested on the target head unit.
+ * Standalone BMW MGU ID7 speed-camera directory.
+ * GPS is read-only from BMW SatellitePositioning SOME/IP, following the
+ * bmw-kaluga-cameras integration pattern. No daemon or external GPS required.
  */
 const mgu = require('./kit/mgu');
 const database = require('./camera-db.json');
+const { BmwGps } = require('./gps');
 
 const CITY_LABELS = {
     'yoshkar-ola': 'Йошкар-Ола',
@@ -20,6 +20,8 @@ mgu.run({
         const { ui, settings, log } = ctx;
         let city = String(settings.get('city') || 'yoshkar-ola');
         let index = 0;
+        const gps = new BmwGps();
+        let gpsSnapshot = gps.snapshot();
 
         function list() {
             return Array.isArray(database[city]) ? database[city] : [];
@@ -31,6 +33,30 @@ mgu.run({
             });
         }
 
+        function gpsStatus() {
+            const snap = gps.snapshot();
+            gpsSnapshot = snap;
+            if (snap.fix) {
+                const fix = snap.fix;
+                show('GPS_STATUS', 'GPS BMW: координаты получены');
+                show('GPS_POSITION', 'Координаты: ' + fix.lat.toFixed(6) + ', ' + fix.lon.toFixed(6));
+                show('GPS_ACCURACY', fix.accuracyM ?
+                    'Точность: около ' + fix.accuracyM.toFixed(1) + ' м' :
+                    'Точность: GST не получен — предупреждения по камерам пока заблокированы');
+                return;
+            }
+            const labels = {
+                connecting: 'GPS BMW: подключение к SatellitePositioning…',
+                subscribed: 'GPS BMW: подписка активна, ожидание спутникового фикса',
+                unavailable: 'GPS BMW: интерфейс недоступен (' + (snap.errorCode || 'unknown') + ')',
+                stale: 'GPS BMW: координаты устарели',
+                stopped: 'GPS BMW: остановлен'
+            };
+            show('GPS_STATUS', labels[snap.state] || 'GPS BMW: ' + snap.state);
+            show('GPS_POSITION', 'Координаты: нет актуального фикса');
+            show('GPS_ACCURACY', 'Точность: не подтверждена');
+        }
+
         function render(message) {
             const cameras = list();
             if (index >= cameras.length) index = 0;
@@ -38,8 +64,7 @@ mgu.run({
 
             show('CITY', 'Город: ' + (CITY_LABELS[city] || city));
             show('COUNT', 'Записей в локальной базе: ' + cameras.length);
-            show('GPS_STATUS', 'GPS: не подключён — автоматические предупреждения не работают');
-            show('VOICE_STATUS', 'Голос: отключён — громкость автомобиля не меняется');
+            gpsStatus();
 
             if (!cameras.length) {
                 show('CAMERA', 'Для этого города проверенных камер пока нет');
@@ -53,6 +78,12 @@ mgu.run({
             show('LIMIT', 'Ограничение: ' + (camera.limit ? camera.limit + ' км/ч' : 'не указано'));
             show('INFO', (camera.type || 'Камера') + ' · ' + (camera.note || 'Локальная запись'));
         }
+
+        gps.on('change', () => {
+            gpsSnapshot = gps.snapshot();
+            gpsStatus();
+        });
+        gps.start();
 
         ui.onClick('BTN_PREV', () => {
             index--;
@@ -77,10 +108,10 @@ mgu.run({
         });
 
         ui.onVisible((name, visible) => {
-            if (name === 'MAIN' && visible) render('Справочник готов');
+            if (name === 'MAIN' && visible) render('GPS BMW подключается');
         });
 
-        render('Справочник готов');
-        log.info('Speed Camera Warning 0.1.0 started; offline directory mode');
+        render('GPS BMW подключается');
+        log.info('Speed Camera Warning 0.2.0 started; BMW SatellitePositioning GPS enabled');
     }
 });
