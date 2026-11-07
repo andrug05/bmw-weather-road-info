@@ -72,7 +72,6 @@ jobs:
           json.dump({'schema':2,'components':[entry]},open('release/catalog.json','w'),indent=2)
           PY
           cp release/catalog.json catalog.json
-          PY
       - name: Publish app release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
