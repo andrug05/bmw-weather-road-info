@@ -1,48 +1,57 @@
 'use strict';
 
 /*
- * Standalone BMW MGU ID7 speed-camera directory.
- * GPS is read-only from BMW SatellitePositioning SOME/IP, following the
- * bmw-kaluga-cameras integration pattern. No daemon or external GPS required.
+ * Standalone BMW MGU ID7 speed-camera app.
+ * Camera records are cached under the app data directory and refreshed from
+ * the versioned public JSON feed when HTTPS connectivity is available.
+ * GPS is read-only BMW SatellitePositioning. Voice/audio is intentionally off.
  */
 const mgu = require('./kit/mgu');
-const database = require('./camera-db.json');
+const bundledDatabase = require('./camera-db.json');
+const { CameraStore } = require('./camera-store');
 const { BmwGps } = require('./gps');
+const { ProximityWarnings } = require('./proximity');
 
 const CITY_LABELS = {
     'yoshkar-ola': 'Йошкар-Ола',
     'moscow': 'Москва',
     'sochi': 'Сочи'
 };
+const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 mgu.run({
     async start(ctx) {
-        const { ui, settings, log } = ctx;
+        const { ui, settings, log, dataDir } = ctx;
         let city = String(settings.get('city') || 'yoshkar-ola');
         let index = 0;
+        const store = new CameraStore({ dataDir, bundled: bundledDatabase });
+        let database = store.loadLocal().database;
         const gps = new BmwGps();
-        let gpsSnapshot = gps.snapshot();
+        const proximity = new ProximityWarnings();
+        let refreshInFlight = null;
+        let lastAlert = 'Предупреждение: нет';
 
         function list() {
-            return Array.isArray(database[city]) ? database[city] : [];
+            return database.cities && Array.isArray(database.cities[city]) ? database.cities[city] : [];
         }
-
+        function mappedCount() {
+            return list().filter((camera) => isFinite(camera.lat) && isFinite(camera.lon)).length;
+        }
         function show(id, value) {
             Promise.resolve(ui.text(id, String(value))).catch((error) => {
                 log.warn('UI update ' + id + ': ' + error);
             });
         }
-
         function gpsStatus() {
             const snap = gps.snapshot();
-            gpsSnapshot = snap;
             if (snap.fix) {
                 const fix = snap.fix;
                 show('GPS_STATUS', 'GPS BMW: координаты получены');
-                show('GPS_POSITION', 'Координаты: ' + fix.lat.toFixed(6) + ', ' + fix.lon.toFixed(6));
-                show('GPS_ACCURACY', fix.accuracyM ?
+                show('GPS_POSITION', 'Координаты: ' + fix.lat.toFixed(6) + ', ' + fix.lon.toFixed(6) +
+                    (fix.speedKmh === null ? '' : ' · ' + Math.round(fix.speedKmh) + ' км/ч'));
+                show('GPS_ACCURACY', fix.accuracyM !== null ?
                     'Точность: около ' + fix.accuracyM.toFixed(1) + ' м' :
-                    'Точность: GST не получен — предупреждения по камерам пока заблокированы');
+                    'Точность GST не получена — оповещения заблокированы');
                 return;
             }
             const labels = {
@@ -56,62 +65,98 @@ mgu.run({
             show('GPS_POSITION', 'Координаты: нет актуального фикса');
             show('GPS_ACCURACY', 'Точность: не подтверждена');
         }
-
         function render(message) {
             const cameras = list();
             if (index >= cameras.length) index = 0;
             if (index < 0) index = Math.max(0, cameras.length - 1);
-
             show('CITY', 'Город: ' + (CITY_LABELS[city] || city));
-            show('COUNT', 'Записей в локальной базе: ' + cameras.length);
+            show('COUNT', 'Камер в базе: ' + cameras.length + ' · с координатами: ' + mappedCount());
             gpsStatus();
-
+            show('ALERT', lastAlert);
             if (!cameras.length) {
-                show('CAMERA', 'Для этого города проверенных камер пока нет');
+                show('CAMERA', 'Для этого города записей пока нет');
                 show('LIMIT', 'Ограничение: —');
-                show('INFO', message || 'Выберите Йошкар-Олу или добавьте проверенные точки в camera-db.json');
+                show('INFO', message || 'Локальная база загружена');
                 return;
             }
-
             const camera = cameras[index];
             show('CAMERA', (index + 1) + '/' + cameras.length + ' · ' + camera.name);
             show('LIMIT', 'Ограничение: ' + (camera.limit ? camera.limit + ' км/ч' : 'не указано'));
-            show('INFO', (camera.type || 'Камера') + ' · ' + (camera.note || 'Локальная запись'));
+            const dbStatus = 'База rev.' + database.revision + ' (' + store.source + ')';
+            show('INFO', (message ? message + ' · ' : '') + dbStatus + ' · ' +
+                (mappedCount() ? 'GPS-оповещения включены' : 'нет координат камер — оповещения пока невозможны'));
+        }
+        function processFix(snap) {
+            gpsStatus();
+            if (!snap || !snap.fix) return;
+            const events = proximity.update(snap.fix, list());
+            events.forEach((event) => {
+                const label = event.stage === 1 ? 'Первая точка' : 'Повторное предупреждение';
+                const text = label + ': камера через ' + event.distanceM + ' м — ' + event.camera.name;
+                lastAlert = text;
+                show('ALERT', text);
+                log.warn('PROXIMITY_WARNING stage=' + event.stage +
+                    ' distance=' + event.distanceM + ' speed=' + event.speedKmh +
+                    ' camera=' + event.camera.id);
+            });
+        }
+        async function refreshDatabase(reason) {
+            if (refreshInFlight) return refreshInFlight;
+            refreshInFlight = store.refresh().then((result) => {
+                database = result.database;
+                if (result.updated) {
+                    index = 0;
+                    proximity.reset();
+                    log.info('Camera database updated to revision ' + database.revision);
+                    render('База камер обновлена');
+                } else if (result.error) {
+                    log.info('Camera database update unavailable: ' + result.error);
+                    if (reason === 'manual') render('Нет сети; используется сохранённая база');
+                } else if (reason === 'manual') {
+                    render('База уже актуальна');
+                }
+                return result;
+            }).catch((error) => {
+                log.warn('Camera database refresh failed: ' + error);
+                if (reason === 'manual') render('Ошибка обновления; используется локальная база');
+                return { updated: false, error: String(error), database };
+            }).then((result) => {
+                refreshInFlight = null;
+                return result;
+            });
+            return refreshInFlight;
         }
 
-        gps.on('change', () => {
-            gpsSnapshot = gps.snapshot();
-            gpsStatus();
-        });
+        gps.on('change', (snap) => processFix(snap));
         gps.start();
 
         ui.onClick('BTN_PREV', () => {
             index--;
-            render('Предыдущая запись');
+            render('Предыдущая камера');
         });
         ui.onClick('BTN_NEXT', () => {
             index++;
-            render('Следующая запись');
+            render('Следующая камера');
         });
         ui.onClick('BTN_REFRESH', () => {
-            const selectedCity = String(settings.get('city') || 'yoshkar-ola');
-            city = database[selectedCity] ? selectedCity : 'yoshkar-ola';
-            index = 0;
-            render('Локальная база перечитана');
+            refreshDatabase('manual');
         });
-
         settings.onChange((key) => {
             if (key !== 'city') return;
             city = String(settings.get('city') || 'yoshkar-ola');
             index = 0;
+            proximity.reset();
             render('Город изменён');
         });
-
         ui.onVisible((name, visible) => {
-            if (name === 'MAIN' && visible) render('GPS BMW подключается');
+            if (name === 'MAIN' && visible) render('Локальная база готова');
         });
 
-        render('GPS BMW подключается');
-        log.info('Speed Camera Warning 0.2.0 started; BMW SatellitePositioning GPS enabled');
+        render('Локальная база загружена; проверка обновлений…');
+        // The bundled/cache copy is immediately usable; network refresh never blocks startup.
+        refreshDatabase('startup');
+        setInterval(() => refreshDatabase('scheduled'), REFRESH_INTERVAL_MS);
+        log.info('Speed Camera Warning 0.3.0 started; database source=' + store.source +
+            '; GPS proximity alerts enabled for geocoded cameras; voice disabled');
     }
 });
