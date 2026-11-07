@@ -1,27 +1,18 @@
 'use strict';
-
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
-
 const root = path.resolve(__dirname, '..');
-const spec = JSON.parse(fs.readFileSync(path.join(root, 'apps/aurelm_speed_camera_warning/app.json'), 'utf8'));
-const source = fs.readFileSync(path.join(root, 'apps/aurelm_speed_camera_warning/main.js'), 'utf8');
-
+const appDir = path.join(root, 'apps/aurelm_speed_camera_warning');
+const spec = JSON.parse(fs.readFileSync(path.join(appDir, 'app.json'), 'utf8'));
+const db = JSON.parse(fs.readFileSync(path.join(appDir, 'camera-db.json'), 'utf8'));
+const source = fs.readFileSync(path.join(appDir, 'main.js'), 'utf8');
 assert.strictEqual(spec.id, 'aurelm_speed_camera_warning');
 assert.strictEqual(spec.version, '0.1.0');
-assert.ok(spec.signals['de.bmw.infotainment.speech.readout.ReadoutService']);
-assert.ok(spec.signals['de.bmw.infotainment.speech.readout.ReadoutInstance']);
-assert.deepStrictEqual(
-    spec.signals['de.bmw.infotainment.speech.readout.ReadoutService']._methods,
-    ['registerReadoutClient', 'unregisterReadoutClient']
-);
-assert.deepStrictEqual(
-    spec.signals['de.bmw.infotainment.speech.readout.ReadoutInstance']._methods,
-    ['startReadout']
-);
-assert.ok(source.includes("signals.proxy(READOUT_SERVICE"));
-assert.ok(source.includes("signals.call(proxy, 'startReadout'"));
-assert.ok(source.includes('textLanguage: language === \'en\' ? 2 : 14'));
-assert.ok(!source.includes('Weather 0.2.7'));
-console.log('Readout app config tests passed');
+assert.strictEqual(spec.screens[0].name, 'MAIN');
+assert.ok(Array.isArray(db['yoshkar-ola']) && db['yoshkar-ola'].length >= 1);
+assert.ok(source.includes("require('./camera-db.json')"));
+assert.ok(source.includes('GPS: не подключён'));
+assert.ok(source.includes('Голос: отключён'));
+assert.ok(!/Weather 0.2.7|open-meteo|overpass-api/i.test(source));
+console.log('Speed Camera Warning app tests passed');
