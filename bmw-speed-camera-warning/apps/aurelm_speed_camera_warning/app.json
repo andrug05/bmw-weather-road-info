@@ -1,0 +1,61 @@
+{
+  "id": "aurelm_speed_camera_warning",
+  "title": "Speed Camera Warning",
+  "description": "Standalone BMW MGU ID7 speed camera warning prototype with native BMW Readout voice test.",
+  "version": "0.1.0",
+  "vendor": "Andrug05",
+  "loggingId": "SCAM",
+  "iconGlyph": "camera",
+  "signals": {
+    "de.bmw.infotainment.speech.readout.ReadoutService": {
+      "_instances": "ReadoutServiceHMI",
+      "_methods": [
+        "registerReadoutClient",
+        "unregisterReadoutClient"
+      ]
+    },
+    "de.bmw.infotainment.speech.readout.ReadoutInstance": {
+      "_instances": "*",
+      "_methods": [
+        "startReadout"
+      ],
+      "currentStatus": "r"
+    }
+  },
+  "screens": [
+    {
+      "name": "MAIN",
+      "kind": "menu",
+      "title": "Speed Camera Warning",
+      "items": [
+        ["button", "BTN_TEST_VOICE", "Проверить голосовое оповещение"],
+        ["text", "STATUS", "Readout: не проверен"],
+        ["text", "DETAIL", "Нажмите кнопку для теста штатного голоса BMW"]
+      ]
+    }
+  ],
+  "settings": [
+    {
+      "key": "voice_language",
+      "label": "Язык оповещений",
+      "type": "choice",
+      "default": "ru",
+      "options": [
+        ["ru", "Русский"],
+        ["en", "English"]
+      ]
+    },
+    {
+      "key": "warning_distance",
+      "label": "Дистанция предупреждения",
+      "type": "choice",
+      "default": "500",
+      "options": [
+        ["300", "300 м"],
+        ["500", "500 м"],
+        ["800", "800 м"],
+        ["1000", "1000 м"]
+      ]
+    }
+  ]
+}
