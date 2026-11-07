@@ -16,11 +16,14 @@ function distanceMeters(a, b) {
 class ProximityWarnings {
     constructor() { this.states = Object.create(null); }
     update(fix, cameras) {
-        if (!fix || !isFinite(fix.lat) || !isFinite(fix.lon) || !isFinite(fix.speedKmh) ||
-            fix.speedKmh < 0 || !isFinite(fix.accuracyM) || fix.accuracyM > 50) return [];
+        if (!fix || typeof fix.lat !== 'number' || !isFinite(fix.lat) ||
+            typeof fix.lon !== 'number' || !isFinite(fix.lon) ||
+            typeof fix.speedKmh !== 'number' || !isFinite(fix.speedKmh) || fix.speedKmh < 0 ||
+            typeof fix.accuracyM !== 'number' || !isFinite(fix.accuracyM) || fix.accuracyM > 50) return [];
         const events = [], seen = Object.create(null);
         (cameras || []).forEach((camera) => {
-            if (!camera || typeof camera.id !== 'string' || !isFinite(camera.lat) || !isFinite(camera.lon)) return;
+            if (!camera || typeof camera.id !== 'string' || typeof camera.lat !== 'number' || !isFinite(camera.lat) ||
+                typeof camera.lon !== 'number' || !isFinite(camera.lon)) return;
             seen[camera.id] = true;
             const d = distanceMeters(fix, camera);
             const firstM = fix.speedKmh > FAST_SPEED_KMH ? FAST_WARNING_M : FIRST_WARNING_M;
