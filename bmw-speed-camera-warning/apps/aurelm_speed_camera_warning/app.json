@@ -1,81 +1,36 @@
 {
   "id": "aurelm_speed_camera_warning",
   "title": "Speed Camera Warning",
-  "description": "Локальная база камер с обновлением через интернет и GPS-предупреждениями 700/500/200 м.",
-  "version": "0.3.0",
+  "description": "Офлайн-карта камер Йошкар-Олы, локальная база и GPS-предупреждения.",
+  "version": "0.4.0",
   "vendor": "Andrug05",
   "loggingId": "SCAM",
   "iconGlyph": "camera",
   "screens": [
     {
       "name": "MAIN",
-      "kind": "menu",
-      "title": "Speed Camera Warning",
-      "items": [
+      "kind": "canvas",
+      "title": "Карта камер",
+      "buttons": [
         [
-          "button",
           "BTN_PREV",
-          "Предыдущая камера"
+          "Пред. камера"
         ],
         [
-          "button",
           "BTN_NEXT",
-          "Следующая камера"
+          "След. камера"
         ],
         [
-          "button",
+          "BTN_ZOOM_OUT",
+          "−"
+        ],
+        [
+          "BTN_ZOOM_IN",
+          "+"
+        ],
+        [
           "BTN_REFRESH",
-          "Обновить список"
-        ],
-        [
-          "text",
-          "CITY",
-          "Город: Йошкар-Ола"
-        ],
-        [
-          "text",
-          "COUNT",
-          "Камер в базе: 0"
-        ],
-        [
-          "text",
-          "CAMERA",
-          "Камера не выбрана"
-        ],
-        [
-          "text",
-          "LIMIT",
-          "Ограничение: —"
-        ],
-        [
-          "text",
-          "GPS_STATUS",
-          "GPS: не подключён"
-        ],
-        [
-          "text",
-          "VOICE_STATUS",
-          "Голос: отключён"
-        ],
-        [
-          "text",
-          "INFO",
-          "Локальная база; автообновление при наличии сети"
-        ],
-        [
-          "text",
-          "GPS_POSITION",
-          "Координаты: ожидание"
-        ],
-        [
-          "text",
-          "GPS_ACCURACY",
-          "Точность: не подтверждена"
-        ],
-        [
-          "text",
-          "ALERT",
-          "Предупреждение: нет"
+          "Обновить"
         ]
       ]
     }
