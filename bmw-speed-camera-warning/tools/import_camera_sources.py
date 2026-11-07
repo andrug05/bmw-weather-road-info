@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 CSV_URL = "https://speedcams.world/downloads/ru/ru-all.csv"
 NOMINATIM = "https://nominatim.openstreetmap.org/search"
-OVERPASS = "https://overpass-api.de/api/interpreter"
+OVERPASS_ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter"]
 UA = "BMW-Speed-Camera-Warning/0.5.0 (camera database build)"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data", "camera-db.json")
@@ -77,7 +77,18 @@ def osm_nodes(geometry):
     bbox = f"{minlat},{minlon},{maxlat},{maxlon}"
     query = f'[out:json][timeout:45];(node["highway"="speed_camera"]({bbox});node["enforcement"="maxspeed"]({bbox}););out body;'
     payload = urllib.parse.urlencode({"data": query}).encode()
-    result = json.loads(fetch(OVERPASS, payload, timeout=90).decode("utf-8"))
+    last_error=None
+    for endpoint in OVERPASS_ENDPOINTS:
+        for attempt in range(3):
+            try:
+                result=json.loads(fetch(endpoint,payload,timeout=90).decode("utf-8"))
+                last_error=None
+                break
+            except Exception as exc:
+                last_error=exc
+                time.sleep(2 + attempt*3)
+        if last_error is None: break
+    if last_error is not None: raise last_error
     out=[]
     for node in result.get("elements", []):
         lat,lon=node.get("lat"),node.get("lon")
@@ -183,7 +194,11 @@ def main():
         c.setdefault("sourceUrl","https://www.driver-helper.ru/kamery-gibdd/joshkar_ola")
     region_cameras=dedupe(speed_region+live_region)
     city_cameras=dedupe(speed_city+live_city+manual)
-    third_party=helpradar_candidates()
+    try:
+        third_party=helpradar_candidates()
+    except Exception as exc:
+        print("WARNING: HelpRadar import unavailable; coordinate-backed sources remain active:",exc,file=sys.stderr)
+        third_party=[]
     known_names={re.sub(r'[^а-яa-z0-9]+',' ',c['name'].lower()).strip() for c in city_cameras}
     city_cameras += [c for c in third_party if re.sub(r'[^а-яa-z0-9]+',' ',c['name'].lower()).strip() not in known_names]
     db={"schemaVersion":1,"revision":next_revision,"updatedAt":datetime.now(timezone.utc).isoformat(),
